@@ -120,4 +120,5 @@ void test_entry::grammar_and_concepts()
     }
 
     std::println("[Grammar and Concepts] ----------- END -----------");
+    std::println();
 }

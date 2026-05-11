@@ -57,4 +57,5 @@ void test_entry::hello_reflection()
     print_each_enumerator(day);
 
     std::println("[Hello Reflection] ----------- END -----------");
+    std::println();
 }

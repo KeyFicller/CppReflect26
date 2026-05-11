@@ -6,5 +6,7 @@ namespace test_entry {
 
     void grammar_and_concepts();
 
+    void list_of_meta_functions();
+
 
 } // namespace test_entry
