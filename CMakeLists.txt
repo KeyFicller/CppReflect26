@@ -21,7 +21,7 @@ set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(CppReflection main.cpp src/hello_reflection.cpp)
+add_executable(CppReflection main.cpp src/hello_reflection.cpp src/grammer_and_concepts.cpp)
 target_include_directories(CppReflection PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(CppReflection PRIVATE -freflection -freflection-latest)
 target_link_options(CppReflection PRIVATE -stdlib=libc++)

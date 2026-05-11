@@ -20,11 +20,16 @@ enum class WeekDay{
 };
 
 template <typename T>
+consteval auto memeber_static_array(const T& _object)
+{
+    return std::define_static_array(
+        std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
+}
+
+template <typename T>
 void print_each_field(const T& _object)
 {
-    constexpr auto members = std::define_static_array(
-        std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
-    template for (constexpr std::meta::info mem : members) {
+    template for (constexpr std::meta::info mem : memeber_static_array(_object)) {
         std::println("  {}:{}", std::meta::identifier_of(mem), _object.[:mem:]);
     }
 }
@@ -42,9 +47,14 @@ void print_each_enumerator(const E& _object)
 
 void test_entry::hello_reflection()
 {
+
+    std::println("[Hello Reflection] ----------- START -----------");
+
     PodStruct object{.m_mem_int = 1, .m_mem_real = 2.0, .m_mem_str = "Hello, Reflection!"};
     print_each_field(object);
 
     WeekDay day = WeekDay::Tuesday;
     print_each_enumerator(day);
+
+    std::println("[Hello Reflection] ----------- END -----------");
 }

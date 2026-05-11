@@ -6,6 +6,8 @@ int main() {
 
     test_entry::hello_reflection();
 
+    test_entry::grammar_and_concepts();
+
     std::cin.get();
 
 }
