@@ -10,4 +10,6 @@ namespace test_entry {
 
     void implement_enumeration_reflection();
 
+    void implement_struct_reflection();
+
 } // namespace test_entry

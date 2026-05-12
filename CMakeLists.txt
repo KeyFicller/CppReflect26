@@ -21,6 +21,27 @@ set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+include(FetchContent)
+# yaml-cpp 0.8.0 uses a very old inner cmake_minimum_required; CMake 4.0+ aborts unless
+# the minimum policy level is raised (see CMake error hint / policy version minimum).
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+endif()
+set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(YAML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG 0.8.0
+)
+FetchContent_MakeAvailable(yaml-cpp)
+# MinGW-target clang defaults to libstdc++ unless forced; CppReflection uses libc++, so yaml-cpp must match.
+if(TARGET yaml-cpp)
+  target_compile_options(yaml-cpp PRIVATE -stdlib=libc++)
+  target_link_options(yaml-cpp PRIVATE -stdlib=libc++)
+endif()
+
 add_executable(
   CppReflection
   main.cpp
@@ -28,10 +49,12 @@ add_executable(
   src/grammer_and_concepts.cpp
   src/list_of_meta_functions.cpp
   src/implement_enumeration_reflection.cpp
+  src/implement_struct_reflection.cpp
 )
 target_include_directories(CppReflection PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(CppReflection PRIVATE -freflection -freflection-latest)
 target_link_options(CppReflection PRIVATE -stdlib=libc++)
+target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp)
 
 set(_v1 "${LLVM_ROOT}/include/c++/v1")
 set(_src "${LLVM_ROOT}/../libcxx/include")

@@ -12,6 +12,8 @@ int main() {
 
     test_entry::implement_enumeration_reflection();
 
+    test_entry::implement_struct_reflection();
+
     std::cin.get();
 
 }
