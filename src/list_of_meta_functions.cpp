@@ -35,6 +35,12 @@ union MyUnion {
     void* m_p;
 };
 
+template <typename T, typename R = double>
+class MyClassTemplate {
+    public:
+        T m_t;
+};
+
 #define MEMBER_LIST(QUERY_NAME, OBJECT) \
     std::println("  {}:", #QUERY_NAME); \
     template for (constexpr std::meta::info mem : std::define_static_array( \
@@ -96,10 +102,32 @@ void test_entry::list_of_meta_functions()
 
         std::println("  is_class_type(MyStruct) -> bool = {}", std::meta::is_class_type(^^MyNameSpace::MyStruct));
         std::println("  is_enum_type(MyEnum) -> bool = {}", std::meta::is_enum_type(^^MyEnum));
-        //std::println("  is_enum(MyEnum) -> bool = {}", std::meta::is_enum(^^MyEnum));
-        //std::println("  is_union(MyUnion) -> bool = {}", std::meta::is_union(^^MyUnion));
-        //std::println("  is_nonstatic_data_member(MyStruct::m_pub_i) -> bool = {}", std::meta::is_nonstatic_data_member(^^MyNameSpace::MyStruct::m_pub_i));
-        //std::println("  is_static_member(MyStruct::s_pub_i) -> bool = {}", std::meta::is_static_member(^^MyNameSpace::MyStruct::s_pub_i));
+        std::println("  is_union_type(MyUnion) -> bool = {}", std::meta::is_union_type(^^MyUnion));
+        std::println("  is_nonstatic_data_member(MyStruct::m_pub_i) -> bool = {}", std::meta::is_nonstatic_data_member(^^MyNameSpace::MyStruct::m_pub_i));
+        std::println("  is_static_member(MyStruct::s_pub_i) -> bool = {}", std::meta::is_static_member(^^MyNameSpace::MyStruct::s_pub_i));
+        std::println("  is_class_template(MyClassTemplate<int>) -> bool = {}", std::meta::is_class_template(^^MyClassTemplate<int>));
+        std::println("  is_class_template(MyClassTemplate) -> bool = {}", std::meta::is_class_template(^^MyClassTemplate));
+        std::println("  is_template(MyClassTemplate<int>) -> bool = {}", std::meta::is_template(^^MyClassTemplate<int>));
+        std::println("  is_template(MyClassTemplate) -> bool = {}", std::meta::is_template(^^MyClassTemplate));
+
+        template for (constexpr std::meta::info mem : std::define_static_array(
+            std::meta::template_arguments_of(^^MyClassTemplate<int>))
+        )
+        {
+            std::println("    template argument: {}", std::meta::display_string_of(mem));
+        }
+
+        // ... TODO: test other queries that you are intersted in.
+    }
+
+    {
+        // Inheritance queries
+        template for (constexpr std::meta::info mem : std::define_static_array(
+            std::meta::bases_of(^^MyNameSpace::MyStruct, std::meta::access_context::unchecked()))
+        )
+        {
+            std::println("    base class: {}", std::meta::display_string_of(mem));
+        }
     }
 
     std::println("[List of Meta Functions] ----------- END -----------");
