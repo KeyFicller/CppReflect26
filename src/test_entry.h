@@ -8,5 +8,6 @@ namespace test_entry {
 
     void list_of_meta_functions();
 
+    void implement_enumeration_reflection();
 
 } // namespace test_entry

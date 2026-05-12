@@ -27,6 +27,7 @@ add_executable(
   src/hello_reflection.cpp
   src/grammer_and_concepts.cpp
   src/list_of_meta_functions.cpp
+  src/implement_enumeration_reflection.cpp
 )
 target_include_directories(CppReflection PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
 target_compile_options(CppReflection PRIVATE -freflection -freflection-latest)
