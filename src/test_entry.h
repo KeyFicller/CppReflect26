@@ -12,4 +12,6 @@ namespace test_entry {
 
     void implement_struct_reflection();
 
+    void implement_ui_reflection();
+
 } // namespace test_entry

@@ -164,6 +164,10 @@ void test_entry::implement_struct_reflection()
             std::println("{}: dump: {}, load: {}", std::meta::display_string_of(field), serialize_struct.[:field:], deserialize_struct.[:field:]);
         }
     }
+
+    {
+        // Undo Redo Framework
+    }
     
     std::println("[Implement Struct Reflection] ----------- END -----------");
     

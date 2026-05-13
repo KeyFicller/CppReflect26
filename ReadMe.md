@@ -12,7 +12,7 @@ Minimal notes and sample code for WG21 P2996.
 - Execute below command to generate executable.
 
 ```sh
-cmake -S . -B build -G Ninja
+cmake -S . -B build -G Ninja  #   Or "cmake.generator": "Ninja" in .vscode/setting.json
 cmake --build build
 ```
 

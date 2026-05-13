@@ -2,7 +2,7 @@
 #include "test_entry.h"
 #include <iostream>
 
-int main() {
+int main(int argc, char* argv[]) {
 
     test_entry::hello_reflection();
 
@@ -13,6 +13,8 @@ int main() {
     test_entry::implement_enumeration_reflection();
 
     test_entry::implement_struct_reflection();
+
+    test_entry::implement_ui_reflection();
 
     std::cin.get();
 
