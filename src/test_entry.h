@@ -14,4 +14,6 @@ namespace test_entry {
 
     void implement_ui_reflection();
 
+    void implement_undo_redo_reflection();
+
 } // namespace test_entry

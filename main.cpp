@@ -14,8 +14,10 @@ int main(int argc, char* argv[]) {
 
     test_entry::implement_struct_reflection();
 
+    test_entry::implement_undo_redo_reflection();
+
     test_entry::implement_ui_reflection();
 
-    std::cin.get();
+    //std::cin.get();
 
 }
