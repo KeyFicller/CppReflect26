@@ -16,7 +16,9 @@ int main(int argc, char* argv[]) {
 
     test_entry::implement_undo_redo_reflection();
 
-    test_entry::implement_ui_reflection();
+    //test_entry::implement_ui_reflection();
+
+    test_entry::implement_ffn_reflection();
 
     //std::cin.get();
 

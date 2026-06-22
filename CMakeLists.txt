@@ -102,6 +102,7 @@ add_executable(
   src/implement_struct_reflection.cpp
   src/implement_ui_reflection.cpp
   src/implement_undo_redo_reflection.cpp
+  src/implement_ffn_reflection.cpp
 )
 target_sources(CppReflection PRIVATE ${IMGUI_CORE_SOURCES} ${CPPREF_IMGUI_BACKEND_SOURCES})
 target_include_directories(CppReflection PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CPPREF_IMGUI_ROOT}"

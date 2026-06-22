@@ -16,4 +16,6 @@ namespace test_entry {
 
     void implement_undo_redo_reflection();
 
+    void implement_ffn_reflection();
+
 } // namespace test_entry
