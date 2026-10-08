@@ -1,96 +1,119 @@
 cmake_minimum_required(VERSION 3.20)
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/reflect_stub.cmake")
 
-set(LLVM_ROOT "D:/VibeCoding/clang-p2996/build" CACHE PATH "LLVM prefix: bin/clang++, include/c++/v1 if installed")
-set(_b "${LLVM_ROOT}/bin")
-if(WIN32)
-  set(_cx "${_b}/clang++.exe")
-  set(_cc "${_b}/clang.exe")
-else()
-  set(_cx "${_b}/clang++")
-  set(_cc "${_b}/clang")
-endif()
+# ---------------------------------------------------------------------------
+# clang-p2996 (P2996 static reflection), installed locally:
+#   <LLVM_ROOT>/bin/clang++          compiler; the driver finds the libc++ below
+#   <LLVM_ROOT>/include/c++/v1/meta  reflective libc++ headers
+#   <LLVM_ROOT>/lib/libc++.dylib     matching runtime
+# ---------------------------------------------------------------------------
+set(LLVM_ROOT "/Users/keyficller/src/llvm-p2996" CACHE PATH "clang-p2996 install prefix")
+
+set(_cx "${LLVM_ROOT}/bin/clang++")
+set(_cc "${LLVM_ROOT}/bin/clang")
 if(NOT EXISTS "${_cx}")
-  message(FATAL_ERROR "clang++ not found: ${_cx}")
+  message(FATAL_ERROR "clang++ not found: ${_cx} (set LLVM_ROOT)")
 endif()
 set(CMAKE_CXX_COMPILER "${_cx}" CACHE FILEPATH "" FORCE)
 set(CMAKE_C_COMPILER "${_cc}" CACHE FILEPATH "" FORCE)
 
 project(CppReflection LANGUAGES C CXX)
+
 set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Single-config generator (Ninja) would otherwise build with no flags at all,
+# i.e. no -g and therefore no debug info for breakpoints.
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "" FORCE)
+  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
+if(NOT EXISTS "${LLVM_ROOT}/include/c++/v1/meta")
+  message(FATAL_ERROR "reflective libc++ not found: ${LLVM_ROOT}/include/c++/v1/meta")
+endif()
+
+# macOS SDK headers: a source-built clang has no default sysroot.
+execute_process(COMMAND xcrun --show-sdk-path
+                OUTPUT_VARIABLE _sdk OUTPUT_STRIP_TRAILING_WHITESPACE)
+if(NOT _sdk)
+  message(FATAL_ERROR "xcrun --show-sdk-path failed")
+endif()
+
+add_compile_options(-isysroot "${_sdk}" "$<$<COMPILE_LANGUAGE:CXX>:-freflection-latest>")
+# Link the reflective runtime from the prefix instead of /usr/lib.
+add_link_options(-isysroot "${_sdk}" -L "${LLVM_ROOT}/lib" "-Wl,-rpath,${LLVM_ROOT}/lib")
+
+# ---------------------------------------------------------------------------
+# Third-party dependencies.
+# ---------------------------------------------------------------------------
 include(FetchContent)
-include("${CMAKE_CURRENT_LIST_DIR}/cmake/cppref_github_mirror.cmake")
-# yaml-cpp 0.8.0 uses a very old inner cmake_minimum_required; CMake 4.0+ aborts unless
-# the minimum policy level is raised (see CMake error hint / policy version minimum).
+
+# github.com clones are unreliable on this network, so fetch from the gitee
+# mirrors by default (same tags/commits). Configure with -DCPPREF_DEPS_FROM_GITHUB=ON
+# to use github.com directly.
+option(CPPREF_DEPS_FROM_GITHUB "Fetch dependencies from github.com instead of the gitee mirrors" OFF)
+if(CPPREF_DEPS_FROM_GITHUB)
+  set(CPPREF_YAML_CPP_URL "https://github.com/jbeder/yaml-cpp.git" CACHE STRING "")
+  set(CPPREF_GLFW_URL "https://github.com/glfw/glfw.git" CACHE STRING "")
+  set(CPPREF_IMGUI_URL "https://github.com/ocornut/imgui.git" CACHE STRING "")
+else()
+  set(CPPREF_YAML_CPP_URL "https://gitee.com/mirrors/yaml-cpp.git" CACHE STRING "")
+  set(CPPREF_GLFW_URL "https://gitee.com/mirrors/glfw.git" CACHE STRING "")
+  set(CPPREF_IMGUI_URL "https://gitee.com/mirrors/imgui.git" CACHE STRING "")
+endif()
+
+# yaml-cpp 0.8.0 declares a pre-3.5 cmake_minimum_required, which CMake 4 aborts on.
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "4.0")
-  set(CMAKE_POLICY_VERSION_MINIMUM 3.5 CACHE STRING "" FORCE)
+  set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
 endif()
 set(YAML_CPP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(YAML_CPP_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
 set(YAML_BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
-cppref_github_mirror("https://github.com/jbeder/yaml-cpp.git" YAML_CPP_GIT_REPOSITORY)
 FetchContent_Declare(
   yaml-cpp
-  GIT_REPOSITORY "${YAML_CPP_GIT_REPOSITORY}"
+  GIT_REPOSITORY "${CPPREF_YAML_CPP_URL}"
   GIT_TAG 0.8.0
 )
 FetchContent_MakeAvailable(yaml-cpp)
-# MinGW-target clang defaults to libstdc++ unless forced; CppReflection uses libc++, so yaml-cpp must match.
-if(TARGET yaml-cpp)
-  target_compile_options(yaml-cpp PRIVATE -stdlib=libc++)
-  target_link_options(yaml-cpp PRIVATE -stdlib=libc++)
-endif()
 
-# Dear ImGui (docking branch): FetchContent (shallow via mirror); sources under build/_deps/imgui-src by default.
-cppref_github_mirror("https://github.com/ocornut/imgui.git" IMGUI_GIT_REPOSITORY)
+# Dear ImGui (docking branch): sources only, the repo has no CMakeLists.
 FetchContent_Declare(
   imgui
-  GIT_REPOSITORY "${IMGUI_GIT_REPOSITORY}"
+  GIT_REPOSITORY "${CPPREF_IMGUI_URL}"
   GIT_TAG docking
   GIT_SHALLOW TRUE
 )
 FetchContent_MakeAvailable(imgui)
 set(CPPREF_IMGUI_ROOT "${imgui_SOURCE_DIR}")
 if(NOT EXISTS "${CPPREF_IMGUI_ROOT}/imgui.h")
-  message(FATAL_ERROR "FetchContent did not provide Dear ImGui at ${CPPREF_IMGUI_ROOT}")
+  message(FATAL_ERROR "Dear ImGui sources not found at ${CPPREF_IMGUI_ROOT}")
 endif()
-file(READ "${CPPREF_IMGUI_ROOT}/imgui.h" CPPREF_IMGUI_H LIMIT 524288)
-if(NOT CPPREF_IMGUI_H MATCHES ImGuiConfigFlags_DockingEnable)
-  message(FATAL_ERROR "Dear ImGui FetchContent tag must be docking branch (expected ImGuiConfigFlags_DockingEnable in imgui.h)")
-endif()
-unset(CPPREF_IMGUI_H)
 
-set(IMGUI_CORE_SOURCES
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  glfw
+  GIT_REPOSITORY "${CPPREF_GLFW_URL}"
+  GIT_TAG 3.4
+)
+FetchContent_MakeAvailable(glfw)
+find_package(OpenGL REQUIRED)
+
+# ---------------------------------------------------------------------------
+# CppReflection executable.
+# ---------------------------------------------------------------------------
+set(IMGUI_SOURCES
     ${CPPREF_IMGUI_ROOT}/imgui.cpp
     ${CPPREF_IMGUI_ROOT}/imgui_demo.cpp
     ${CPPREF_IMGUI_ROOT}/imgui_draw.cpp
     ${CPPREF_IMGUI_ROOT}/imgui_tables.cpp
     ${CPPREF_IMGUI_ROOT}/imgui_widgets.cpp
     ${CPPREF_IMGUI_ROOT}/misc/cpp/imgui_stdlib.cpp
-)
-
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
-cppref_github_mirror("https://github.com/glfw/glfw.git" GLFW_GIT_REPOSITORY)
-FetchContent_Declare(
-  glfw
-  GIT_REPOSITORY "${GLFW_GIT_REPOSITORY}"
-  GIT_TAG 3.4
-)
-FetchContent_MakeAvailable(glfw)
-find_package(OpenGL REQUIRED)
-set(CPPREF_IMGUI_BACKEND_SOURCES
     ${CPPREF_IMGUI_ROOT}/backends/imgui_impl_glfw.cpp
-    ${CPPREF_IMGUI_ROOT}/backends/imgui_impl_opengl3.cpp
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/imgui_backend_glfw_opengl3.cpp")
-
-if(TARGET glfw)
-  target_compile_options(glfw PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-stdlib=libc++>)
-endif()
+    ${CPPREF_IMGUI_ROOT}/backends/imgui_impl_opengl3.cpp)
 
 add_executable(
   CppReflection
@@ -103,28 +126,23 @@ add_executable(
   src/implement_ui_reflection.cpp
   src/implement_undo_redo_reflection.cpp
   src/implement_ffn_reflection.cpp
-)
-target_sources(CppReflection PRIVATE ${IMGUI_CORE_SOURCES} ${CPPREF_IMGUI_BACKEND_SOURCES})
-target_include_directories(CppReflection PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CPPREF_IMGUI_ROOT}"
-                                                    "${CPPREF_IMGUI_ROOT}/backends" "${CPPREF_IMGUI_ROOT}/misc/cpp")
-target_compile_options(CppReflection PRIVATE -freflection -freflection-latest)
-target_link_options(CppReflection PRIVATE -stdlib=libc++)
+  src/imgui_backend_glfw_opengl3.cpp)
+target_sources(CppReflection PRIVATE ${IMGUI_SOURCES})
+target_include_directories(CppReflection PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src"
+    "${CPPREF_IMGUI_ROOT}"
+    "${CPPREF_IMGUI_ROOT}/backends"
+    "${CPPREF_IMGUI_ROOT}/misc/cpp")
 target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL)
 
-set(_v1 "${LLVM_ROOT}/include/c++/v1")
-set(_src "${LLVM_ROOT}/../libcxx/include")
-file(GLOB _trip LIST_DIRECTORIES true "${LLVM_ROOT}/include/*/c++/v1")
-if(EXISTS "${_v1}/__config")
-  target_include_directories(CppReflection SYSTEM BEFORE PRIVATE "${_v1}")
-  if(_trip)
-    list(SORT _trip)
-    list(GET _trip 0 _tp)
-    target_include_directories(CppReflection SYSTEM BEFORE PRIVATE "${_tp}")
+# ld64 leaves DWARF in the object files; lldb needs a .dSYM beside the binary
+# to bind breakpoints. (macOS)
+if(APPLE)
+  find_program(CPPREF_DSYMUTIL dsymutil)
+  if(CPPREF_DSYMUTIL)
+    add_custom_command(TARGET CppReflection POST_BUILD
+      COMMAND "${CPPREF_DSYMUTIL}" "$<TARGET_FILE:CppReflection>"
+      COMMENT "Generating dSYM for CppReflection"
+      VERBATIM)
   endif()
-elseif(EXISTS "${_src}/meta")
-  _reflect_write_libcxx_gen("${CMAKE_BINARY_DIR}/libcxx-gen")
-  target_include_directories(CppReflection SYSTEM BEFORE PRIVATE "${CMAKE_BINARY_DIR}/libcxx-gen" "${_src}")
-  target_compile_options(CppReflection PRIVATE -nostdinc++)
-else()
-  message(FATAL_ERROR "libc++ not found: ${_v1} ${_src}")
 endif()

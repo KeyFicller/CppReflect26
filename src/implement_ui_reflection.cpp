@@ -142,7 +142,7 @@ void impl_reflection_ui(T& _object)
 
 void test_entry::implement_ui_reflection()
 {
-    std::println("[Implement UI Reflection] ----------- START -----------");
+    test_entry::section("Implement UI Reflection");
 
     auto my_draw_callback = [] {
         static MyDeriveStruct data{};
@@ -154,5 +154,5 @@ void test_entry::implement_ui_reflection()
 
     run_imgui_demo_window(my_draw_callback);
 
-    std::println("[Implement UI Reflection] ----------- END -----------");
+    std::println();
 }

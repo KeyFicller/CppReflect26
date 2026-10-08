@@ -1,21 +1,30 @@
 #pragma once
 
+#include <print>
+#include <string_view>
+
 namespace test_entry {
 
-    void hello_reflection();
+// Uniform section banner, e.g. "=== Hello Reflection ===".
+inline void section(std::string_view _name)
+{
+    std::println("=============== {} ================", _name);
+}
 
-    void grammar_and_concepts();
+void hello_reflection();
 
-    void list_of_meta_functions();
+void grammar_and_concepts();
 
-    void implement_enumeration_reflection();
+void list_of_meta_functions();
 
-    void implement_struct_reflection();
+void implement_enumeration_reflection();
 
-    void implement_ui_reflection();
+void implement_struct_reflection();
 
-    void implement_undo_redo_reflection();
+void implement_ui_reflection();
 
-    void implement_ffn_reflection();
+void implement_undo_redo_reflection();
+
+void implement_ffn_reflection();
 
 } // namespace test_entry

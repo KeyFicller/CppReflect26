@@ -124,7 +124,7 @@ std::string impl_reflection_enum_bits_str(E _value)
 
 void test_entry::implement_enumeration_reflection()
 {
-    std::println("[Implement Enumeration Reflection] ----------- START -----------");
+    test_entry::section("Implement Enumeration Reflection");
 
     std::println("impl_classic_(WeekDay::Monday) -> {}", impl_classic_(WeekDay::Monday));
 
@@ -135,18 +135,23 @@ void test_entry::implement_enumeration_reflection()
     }
 
     {
-        std::println("impl_reflection_enum_list_val<WeekDay>() ->");
         auto list_val = impl_reflection_enum_list_val<WeekDay>();
         std::string str;
-        for (const auto& val : list_val) {
-            str += std::to_string((int)(val)) + ", ";
+        for (std::size_t i = 0; i < list_val.size(); ++i) {
+            if (i != 0) {
+                str += ", ";
+            }
+            str += std::to_string(static_cast<int>(list_val[i]));
         }
         std::println("impl_reflection_enum_list_val<WeekDay>() -> {}", str);
 
-        auto list_str = impl_reflection_enum_list_str<WeekDay>();
-        str = "";
-        for (const auto& s : list_str) {
-            str += std::string(s) + ", ";
+        const auto list_str = impl_reflection_enum_list_str<WeekDay>();
+        str.clear();
+        for (std::size_t i = 0; i < list_str.size(); ++i) {
+            if (i != 0) {
+                str += ", ";
+            }
+            str += std::string(list_str[i]);
         }
         std::println("impl_reflection_enum_list_str<WeekDay>() -> {}", str);
     }
@@ -156,5 +161,5 @@ void test_entry::implement_enumeration_reflection()
         std::println("impl_reflection_enum_bits_str<BitEnum>(BitEnum::kRead | BitEnum::kWrite) -> {}", impl_reflection_enum_bits_str(bits));
     }
 
-    std::println("[Implement Enumeration Reflection] ----------- END -----------");
+    std::println();
 }

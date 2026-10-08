@@ -112,7 +112,7 @@ void impl_reflection_deserialize(T& _object, const std::string& _cache)
 
 void test_entry::implement_struct_reflection()
 {
-    std::println("[Implement Struct Reflection] ----------- START -----------");
+    test_entry::section("Implement Struct Reflection");
 
     {
         // Extended useage
@@ -141,7 +141,7 @@ void test_entry::implement_struct_reflection()
 
         constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^MyStruct, std::meta::access_context::unchecked()));
         template for (constexpr std::meta::info field : fields) {
-            std::println("{}: dump: {}, load: {}", std::meta::display_string_of(field), dump_struct.[:field:], load_struct.[:field:]);
+            std::println("  {}: dump: {}, load: {}", std::meta::display_string_of(field), dump_struct.[:field:], load_struct.[:field:]);
         }
     }
 
@@ -161,7 +161,7 @@ void test_entry::implement_struct_reflection()
 
         constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^MyStruct, std::meta::access_context::unchecked()));
         template for (constexpr std::meta::info field : fields) {
-            std::println("{}: dump: {}, load: {}", std::meta::display_string_of(field), serialize_struct.[:field:], deserialize_struct.[:field:]);
+            std::println("  {}: dump: {}, load: {}", std::meta::display_string_of(field), serialize_struct.[:field:], deserialize_struct.[:field:]);
         }
     }
 
@@ -169,6 +169,6 @@ void test_entry::implement_struct_reflection()
         // Undo Redo Framework
     }
     
-    std::println("[Implement Struct Reflection] ----------- END -----------");
+    std::println();
     
 }

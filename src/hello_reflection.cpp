@@ -30,7 +30,7 @@ template <typename T>
 void print_each_field(const T& _object)
 {
     template for (constexpr std::meta::info mem : memeber_static_array(_object)) {
-        std::println("  {}:{}", std::meta::identifier_of(mem), _object.[:mem:]);
+        std::println("  {}: {}", std::meta::identifier_of(mem), _object.[:mem:]);
     }
 }
 
@@ -41,14 +41,14 @@ void print_each_enumerator(const E& _object)
         std::meta::enumerators_of(^^E));
     template for (constexpr std::meta::info e : enumerators) {
         constexpr E value = std::meta::extract<E>(std::meta::constant_of(e));
-        std::println("  {}:{}", std::meta::identifier_of(e), _object == value);
+        std::println("  {}: {}", std::meta::identifier_of(e), _object == value);
     }
 }
 
 void test_entry::hello_reflection()
 {
 
-    std::println("[Hello Reflection] ----------- START -----------");
+    test_entry::section("Hello Reflection");
 
     PodStruct object{.m_mem_int = 1, .m_mem_real = 2.0, .m_mem_str = "Hello, Reflection!"};
     print_each_field(object);
@@ -56,6 +56,5 @@ void test_entry::hello_reflection()
     WeekDay day = WeekDay::Tuesday;
     print_each_enumerator(day);
 
-    std::println("[Hello Reflection] ----------- END -----------");
     std::println();
 }

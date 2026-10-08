@@ -35,16 +35,11 @@ template <std::meta::info R>
 void print_meta_info()
 {
     if constexpr (std::meta::has_identifier(R)) {
-        std::println(
-            "identifier={} display={} (has_identifier={})",
-            std::meta::identifier_of(R),
-            std::meta::display_string_of(R),
-            std::meta::has_identifier(R));
+        std::println("identifier={} display={} has_identifier=true",
+                     std::meta::identifier_of(R), std::meta::display_string_of(R));
     } else {
-        std::println(
-            "display={} (has_identifier={})",
-            std::meta::display_string_of(R),
-            std::meta::has_identifier(R));
+        std::println("identifier=- display={} has_identifier=false",
+                     std::meta::display_string_of(R));
     }
 }
 
@@ -52,7 +47,7 @@ void print_meta_info()
 
 void test_entry::grammar_and_concepts()
 {
-    std::println("[Grammar and Concepts] ----------- START -----------");
+    test_entry::section("Grammar and Concepts");
 
     {
         // Reflection operators
@@ -119,6 +114,5 @@ void test_entry::grammar_and_concepts()
         }
     }
 
-    std::println("[Grammar and Concepts] ----------- END -----------");
     std::println();
 }

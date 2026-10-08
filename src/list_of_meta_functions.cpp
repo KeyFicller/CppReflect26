@@ -46,7 +46,7 @@ class MyClassTemplate {
     template for (constexpr std::meta::info mem : std::define_static_array( \
         std::meta::QUERY_NAME(std::meta::type_of(^^OBJECT), std::meta::access_context::unchecked()))) { \
         if constexpr (std::meta::is_static_member(mem) || std::meta::is_nonstatic_data_member(mem)) { \
-            std::println("    {}:{}", std::meta::display_string_of(mem), OBJECT.[:mem:]); \
+            std::println("    {}: {}", std::meta::display_string_of(mem), OBJECT.[:mem:]); \
         } else { \
             std::println("    {}", std::meta::display_string_of(mem)); \
         } \
@@ -55,18 +55,18 @@ class MyClassTemplate {
 
 void test_entry::list_of_meta_functions()
 {
-    std::println("[List of Meta Functions] ----------- START -----------");
+    test_entry::section("List of Meta Functions");
 
     {
         // list of name queries
-        std::println("--------- List of name queries ---------");
+        std::println("--- List of name queries ---");
         std::println("  identifier_of(MyStruct) -> std::string_view = {}", std::meta::identifier_of(^^MyNameSpace::MyStruct).data());
         std::println("  display_string_of(MyStruct) -> std::string_view = {}", std::meta::display_string_of(^^MyNameSpace::MyStruct));
     }
 
     {
         // list of type queries
-        std::println("--------- List of type queries ---------");
+        std::println("--- List of type queries ---");
         MyNameSpace::MyStruct my_struct;
         std::println("  type_of(my_struct) -> std::meta::info = {}", std::meta::display_string_of(std::meta::type_of(^^my_struct)));
         std::println("  parent_of(MyStruct) -> std::meta::info = {}", std::meta::display_string_of(std::meta::parent_of(^^MyNameSpace::MyStruct)));
@@ -76,7 +76,7 @@ void test_entry::list_of_meta_functions()
 
     {
         // list of member queries
-        std::println("--------- List of member queries ---------");
+        std::println("--- List of member queries ---");
         MyNameSpace::MyStruct my_struct;
         MyNameSpace::MyStruct::s_pub_i = 3;
 
@@ -91,13 +91,14 @@ void test_entry::list_of_meta_functions()
         template for (constexpr std::meta::info e : std::define_static_array(
             std::meta::enumerators_of(^^MyEnum))) {
                 constexpr MyEnum value = std::meta::extract<MyEnum>(std::meta::constant_of(e));
-            std::println("    {}:{}", std::meta::display_string_of(e), (int)value);
+            std::println("    {}: {}", std::meta::display_string_of(e), (int)value);
         };
         std::println();
     }
 
     {
         // List of classification queries
+        std::println("--- List of classification queries ---");
         MyNameSpace::MyStruct my_struct;
 
         std::println("  is_class_type(MyStruct) -> bool = {}", std::meta::is_class_type(^^MyNameSpace::MyStruct));
@@ -130,6 +131,5 @@ void test_entry::list_of_meta_functions()
         }
     }
 
-    std::println("[List of Meta Functions] ----------- END -----------");
     std::println();
 }

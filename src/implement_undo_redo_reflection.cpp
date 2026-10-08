@@ -200,7 +200,7 @@ public:
 
     void restore_from_fullback(const std::string_view& backup_data){
 
-        std::println("restore_from_fullback: backup{}", backup_data);
+        std::println("restore_from_fullback: {} bytes", backup_data.size());
 
         int offset = 0;
 
@@ -350,7 +350,7 @@ namespace {
 
 void test_entry::implement_undo_redo_reflection()
 {
-    std::println("[Implement Undo Redo Reflection] ----------- START -----------");
+    test_entry::section("Implement Undo Redo Reflection");
 
 
     DbObject obj;
@@ -376,5 +376,5 @@ void test_entry::implement_undo_redo_reflection()
     }
 
 
-    std::println("[Implement Undo Redo Reflection] ----------- END -----------");
+    std::println();
 }
