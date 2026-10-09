@@ -350,7 +350,7 @@ namespace {
 
 void test_entry::implement_undo_redo_reflection()
 {
-    test_entry::section("Implement Undo Redo Reflection");
+    test_entry::section banner{"Implement Undo Redo Reflection"};
 
 
     DbObject obj;
@@ -374,7 +374,4 @@ void test_entry::implement_undo_redo_reflection()
     if (data_before != data_after) {
         throw std::runtime_error("data_before != data_after");
     }
-
-
-    std::println();
 }

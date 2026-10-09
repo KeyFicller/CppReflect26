@@ -2,3 +2,6 @@ build/*
 .vscode/*
 .reference/*
 imgui.ini
+.env
+.venv/*
+__pycache__/*

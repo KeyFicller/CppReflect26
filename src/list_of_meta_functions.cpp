@@ -55,7 +55,7 @@ class MyClassTemplate {
 
 void test_entry::list_of_meta_functions()
 {
-    test_entry::section("List of Meta Functions");
+    test_entry::section banner{"List of Meta Functions"};
 
     {
         // list of name queries
@@ -130,6 +130,4 @@ void test_entry::list_of_meta_functions()
             std::println("    base class: {}", std::meta::display_string_of(mem));
         }
     }
-
-    std::println();
 }

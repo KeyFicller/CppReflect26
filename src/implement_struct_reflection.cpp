@@ -112,7 +112,7 @@ void impl_reflection_deserialize(T& _object, const std::string& _cache)
 
 void test_entry::implement_struct_reflection()
 {
-    test_entry::section("Implement Struct Reflection");
+    test_entry::section banner{"Implement Struct Reflection"};
 
     {
         // Extended useage
@@ -168,7 +168,4 @@ void test_entry::implement_struct_reflection()
     {
         // Undo Redo Framework
     }
-    
-    std::println();
-    
 }

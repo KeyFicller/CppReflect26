@@ -124,7 +124,7 @@ std::string impl_reflection_enum_bits_str(E _value)
 
 void test_entry::implement_enumeration_reflection()
 {
-    test_entry::section("Implement Enumeration Reflection");
+    test_entry::section banner{"Implement Enumeration Reflection"};
 
     std::println("impl_classic_(WeekDay::Monday) -> {}", impl_classic_(WeekDay::Monday));
 
@@ -160,6 +160,4 @@ void test_entry::implement_enumeration_reflection()
         auto bits = static_cast<BitEnum>((int)(BitEnum::kRead) | (int)(BitEnum::kWrite));
         std::println("impl_reflection_enum_bits_str<BitEnum>(BitEnum::kRead | BitEnum::kWrite) -> {}", impl_reflection_enum_bits_str(bits));
     }
-
-    std::println();
 }

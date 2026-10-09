@@ -58,10 +58,12 @@ if(CPPREF_DEPS_FROM_GITHUB)
   set(CPPREF_YAML_CPP_URL "https://github.com/jbeder/yaml-cpp.git" CACHE STRING "")
   set(CPPREF_GLFW_URL "https://github.com/glfw/glfw.git" CACHE STRING "")
   set(CPPREF_IMGUI_URL "https://github.com/ocornut/imgui.git" CACHE STRING "")
+  set(CPPREF_NLOHMANN_JSON_URL "https://github.com/nlohmann/json.git" CACHE STRING "")
 else()
   set(CPPREF_YAML_CPP_URL "https://gitee.com/mirrors/yaml-cpp.git" CACHE STRING "")
   set(CPPREF_GLFW_URL "https://gitee.com/mirrors/glfw.git" CACHE STRING "")
   set(CPPREF_IMGUI_URL "https://gitee.com/mirrors/imgui.git" CACHE STRING "")
+  set(CPPREF_NLOHMANN_JSON_URL "https://gitee.com/mirrors/nlohmann-json.git" CACHE STRING "")
 endif()
 
 # yaml-cpp 0.8.0 declares a pre-3.5 cmake_minimum_required, which CMake 4 aborts on.
@@ -102,6 +104,16 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glfw)
 find_package(OpenGL REQUIRED)
 
+# nlohmann/json: used to validate the reflection-generated schemas.
+set(JSON_BuildTests OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  nlohmann_json
+  GIT_REPOSITORY "${CPPREF_NLOHMANN_JSON_URL}"
+  GIT_TAG v3.12.0
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(nlohmann_json)
+
 # ---------------------------------------------------------------------------
 # CppReflection executable.
 # ---------------------------------------------------------------------------
@@ -126,6 +138,7 @@ add_executable(
   src/implement_ui_reflection.cpp
   src/implement_undo_redo_reflection.cpp
   src/implement_ffn_reflection.cpp
+  src/implement_json_schema.cpp
   src/imgui_backend_glfw_opengl3.cpp)
 target_sources(CppReflection PRIVATE ${IMGUI_SOURCES})
 target_include_directories(CppReflection PRIVATE
@@ -133,7 +146,7 @@ target_include_directories(CppReflection PRIVATE
     "${CPPREF_IMGUI_ROOT}"
     "${CPPREF_IMGUI_ROOT}/backends"
     "${CPPREF_IMGUI_ROOT}/misc/cpp")
-target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL)
+target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL nlohmann_json::nlohmann_json)
 
 # ld64 leaves DWARF in the object files; lldb needs a .dSYM beside the binary
 # to bind breakpoints. (macOS)

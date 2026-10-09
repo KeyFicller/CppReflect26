@@ -118,7 +118,7 @@ struct FFNetworkLayer {
 
 void test_entry::implement_ffn_reflection()
 {
-    test_entry::section("Implement FFN Reflection");
+    test_entry::section banner{"Implement FFN Reflection"};
 
     constexpr std::array<float, 2> input = {1.0f, 2.0f};
 
@@ -129,6 +129,4 @@ void test_entry::implement_ffn_reflection()
     std::println("manual forward: {}", manual);
     std::println("generated forward: {}", generated);
     std::println("match: {}", manual == generated);
-
-    std::println();
 }

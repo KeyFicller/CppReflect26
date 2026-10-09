@@ -48,13 +48,11 @@ void print_each_enumerator(const E& _object)
 void test_entry::hello_reflection()
 {
 
-    test_entry::section("Hello Reflection");
+    test_entry::section banner{"Hello Reflection"};
 
     PodStruct object{.m_mem_int = 1, .m_mem_real = 2.0, .m_mem_str = "Hello, Reflection!"};
     print_each_field(object);
 
     WeekDay day = WeekDay::Tuesday;
     print_each_enumerator(day);
-
-    std::println();
 }

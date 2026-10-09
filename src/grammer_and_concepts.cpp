@@ -47,7 +47,7 @@ void print_meta_info()
 
 void test_entry::grammar_and_concepts()
 {
-    test_entry::section("Grammar and Concepts");
+    test_entry::section banner{"Grammar and Concepts"};
 
     {
         // Reflection operators
@@ -113,6 +113,4 @@ void test_entry::grammar_and_concepts()
             std::println("For loop for memberType = {}", typeid(MemberType).name());
         }
     }
-
-    std::println();
 }
