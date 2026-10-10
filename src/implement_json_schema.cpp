@@ -263,7 +263,7 @@ consteval std::string object_schema_impl(std::index_sequence<Is...>)
         }
         properties += "\"" + name + "\":" +
                       with_description(param_schema<MT>(), text_of<^^js::desc, infos[Is]>());
-        if constexpr (!is_optional<MT>::value) {
+        if constexpr (!is_optional<MT>::value && !meta::has_default_member_initializer(infos[Is])) {
             if (!required.empty()) {
                 required += ",";
             }
@@ -273,14 +273,14 @@ consteval std::string object_schema_impl(std::index_sequence<Is...>)
     return "{\"type\":\"object\",\"properties\":{" + properties + "},\"required\":[" + required + "]}";
 }
 
-/// JSON Schema for one C++ type. std::optional unwraps to its value type,
-/// vectors/arrays become arrays, enums become string enums, and other classes
-/// become nested objects.
+/// JSON Schema for one C++ type. std::optional becomes anyOf[T, null] (matching
+/// Pydantic's Optional), vectors/arrays become arrays, enums become string
+/// enums, and other classes become nested objects.
 template <typename T>
 consteval std::string param_schema()
 {
     if constexpr (is_optional<T>::value) {
-        return param_schema<typename T::value_type>();
+        return "{\"anyOf\":[" + param_schema<typename T::value_type>() + ",{\"type\":\"null\"}]}";
     } else if constexpr (is_sequence<T>::value) {
         return "{\"type\":\"array\",\"items\":" + param_schema<typename T::value_type>() + "}";
     } else if constexpr (std::is_enum_v<T>) {
@@ -331,7 +331,8 @@ consteval std::string param_object_schema_impl(std::index_sequence<Is...>)
         }
         properties += "\"" + name + "\":" +
                       with_description(param_schema<PT>(), param_description<Fn, Is>());
-        if constexpr (!is_optional<PT>::value) {
+        // As with members: a default argument makes the parameter omittable.
+        if constexpr (!is_optional<PT>::value && !meta::has_default_argument(param_at<Fn, Is>())) {
             if (!required.empty()) {
                 required += ",";
             }
@@ -593,9 +594,22 @@ auto invoke_with_json(const nlohmann::json& _j)
 template <typename T>
 std::string to_json(const T& _value);
 
+/// Appends `,"name":value`, or nothing at all for an empty std::optional:
+/// absence is how parsing reads "no value", so it is how we write one too.
+/// `_first` tracks whether the separating comma is still owed.
 template <meta::info M, typename T>
-void append_member_json(std::string& _out, const T& _value)
+void append_member_json(std::string& _out, const T& _value, bool& _first)
 {
+    using MT = std::remove_cvref_t<typename [: meta::type_of(M) :]>;
+    if constexpr (is_optional<MT>::value) {
+        if (!_value.[: M :]) {
+            return;
+        }
+    }
+    if (!_first) {
+        _out += ",";
+    }
+    _first = false;
     constexpr std::string_view name = std::define_static_string(meta::identifier_of(M));
     _out += "\"";
     _out += name;
@@ -607,13 +621,8 @@ template <typename T, std::size_t... Is>
 std::string object_to_json(const T& _value, std::index_sequence<Is...>)
 {
     std::string out = "{";
-    std::size_t n = 0;
-    (([&] {
-        if (n++) {
-            out += ",";
-        }
-        append_member_json<member_at<T, Is>(), T>(out, _value);
-    }()), ...);
+    bool first = true;
+    (append_member_json<member_at<T, Is>(), T>(out, _value, first), ...);
     out += "}";
     return out;
 }
@@ -785,10 +794,10 @@ std::string search_documents(std::string query, int limit, bool exact_match,
         hits += "{\"rank\":" + std::to_string(i + 1) + ",\"title\":\"" + query + " #" +
                 std::to_string(i + 1) + "\"}";
     }
+    const std::string unit_field = unit ? (",\"unit\":\"" + js::enum_to_string(*unit) + "\"") : "";
     return "{\"query\":\"" + query + "\",\"limit\":" + std::to_string(limit) +
-           ",\"exact_match\":" + (exact_match ? "true" : "false") + ",\"unit\":\"" +
-           (unit ? (*unit == Unit::Celsius ? "Celsius" : "Fahrenheit") : "any") + "\",\"hits\":[" +
-           hits + "]}";
+           ",\"exact_match\":" + (exact_match ? "true" : "false") + unit_field +
+           ",\"hits\":[" + hits + "]}";
 }
 CPP_REFLECT_TOOL(search_documents)
 
