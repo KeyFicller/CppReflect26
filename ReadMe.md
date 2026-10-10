@@ -26,4 +26,5 @@ cmake --build build
 | `implement_ui_reflection.cpp` | Auto-generate ImGui widgets by walking members and base classes, recursing into nested structs |
 | `implement_ffn_reflection.cpp` | Compose a forward-chain type at compile time from reflected members |
 | `implement_json_schema.cpp` | The LLM bridge: JSON Schema from annotations, `from_json` / `to_json`, tool + struct registries, `run_request` and the `--serve` socket server |
+| `implement_mcp.cpp` | MCP server: tools, prompts and resources derived from markered member functions, driven end to end over a real JSON-RPC loop |
 

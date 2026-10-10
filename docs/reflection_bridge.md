@@ -50,11 +50,21 @@ reflection suite in `main()`. `--serve` can take no argument (defaults to
 
 ```sh
 python -m llm_client tools      [question]
+python -m llm_client mcp        [--prompt NAME [key=value ...]] [--resource URI] [question]
 python -m llm_client structured [request] [format]
 ```
 
 - `tools` — asks `--emit-tools`, binds the schemas, runs the model, feeds each
   tool call's arguments to `--call <name>`, then asks for a final answer.
+- `mcp` — the same loop, but the whole MCP surface goes through LangChain's own
+  `MCPAdapter` (FastMCP underneath), which owns the transport, the session and
+  protocol negotiation. It is async, so the mode runs under `asyncio.run`. The
+  three primitives are used as MCP defines them — by their own actor:
+  - **tools** are model-controlled: discovered via the adapter, handed to the model.
+  - **prompts** are user-controlled: `--prompt NAME key=value ...` is *you* picking
+    a template, whose `prompts/get` messages open the conversation.
+  - **resources** are application-controlled: `--resource URI` is *this app*
+    choosing context, attached as a system message. The model never asks for one.
 - `structured` — asks `--emit-schemas`, forces a single tool via
   `with_structured_output`, and hands the model's JSON to `--parse <format>`.
 
@@ -66,7 +76,8 @@ request text `"SearchRequest"`.
 `requirements.txt` (`langchain`, `langgraph`, `langchain-deepseek`,
 `langchain-ollama`) is installed into `.venv`; `.env` must define
 `DEEPSEEK_API_KEY`. `llm_client.py` never redeclares a C++ signature — schemas and
-results always cross the CLI boundary.
+results always cross a boundary the C++ side defines, whether that is the `--*`
+CLI or the MCP wire.
 
 Endpoint quirks handled in `make_model()`:
 
