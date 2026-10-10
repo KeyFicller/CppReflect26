@@ -1,7 +1,10 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <meta>
 #include <print>
 #include <string>
+
+namespace {
 
 struct PodStruct {
     int m_mem_int;
@@ -19,17 +22,12 @@ enum class WeekDay{
     Sunday
 };
 
-template <typename T>
-consteval auto memeber_static_array(const T& _object)
-{
-    return std::define_static_array(
-        std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
-}
+} // namespace
 
 template <typename T>
 void print_each_field(const T& _object)
 {
-    template for (constexpr std::meta::info mem : memeber_static_array(_object)) {
+    template for (constexpr std::meta::info mem : test_entry::member_static_array(_object)) {
         std::println("  {}: {}", std::meta::identifier_of(mem), _object.[:mem:]);
     }
 }

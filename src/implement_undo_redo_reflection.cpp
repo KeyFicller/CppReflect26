@@ -1,4 +1,5 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <meta>
 #include <print>
 #include <string>
@@ -8,7 +9,7 @@
 #include <unordered_map>
 #include <cstring>
 
-class DbObject;
+struct DbObject;
 
 template <typename T>
 consteval std::size_t get_member_index(std::meta::info target)
@@ -31,6 +32,12 @@ consteval std::size_t get_member_index(std::meta::info target)
 namespace {
     std::string gl_stream_buffer;
 
+    int read_int(const char* _data, std::size_t _offset)
+    {
+        int value = 0;
+        std::memcpy(&value, _data + _offset, sizeof(value));
+        return value;
+    }
 
     struct CommandAnchor {
         int m_begin = 0;
@@ -46,9 +53,12 @@ namespace {
 
 template <typename T>
 struct Member {
+    static_assert(std::is_trivially_copyable_v<T>,
+                  "MEMBER requires a trivially copyable type: the undo/redo path copies raw bytes");
+
     template <typename ...Args>
     Member(DbObject* _owner, Args&& ..._args)
-        : m_owner(_owner), m_value(std::forward<Args>(_args)...)
+        : m_value(std::forward<Args>(_args)...), m_owner(_owner)
         {}
 
     const T& get() const {
@@ -138,15 +148,14 @@ public:
                 throw std::runtime_error("restore_from_backup: truncated footer");
 
             r -= static_cast<std::ptrdiff_t>(sizeof(int));
-            const int body_len =
-                *reinterpret_cast<const int*>(_backup_data.data() + static_cast<std::size_t>(r));
+            const int body_len = read_int(_backup_data.data(), static_cast<std::size_t>(r));
             if (body_len < 0 || r - body_len < l)
                 throw std::runtime_error("restore_from_backup: invalid body_len");
 
             r -= body_len;
             const int session_start = static_cast<int>(r);
 
-            const int tag = *reinterpret_cast<const int*>(_backup_data.data() + static_cast<std::size_t>(session_start));
+            const int tag = read_int(_backup_data.data(), static_cast<std::size_t>(session_start));
             const int after_tag_off = session_start + static_cast<int>(sizeof(int));
 
             const int inner_bytes = session_start + body_len - after_tag_off;
@@ -212,8 +221,7 @@ public:
                     std::define_static_array(std::meta::template_arguments_of(fty));
                 using field_type = typename[:targs[0]:];
                 if constexpr (std::is_same_v<field_type, std::string>) {
-                    const int elem_len =
-                        *reinterpret_cast<const int*>(backup_data.data() + static_cast<std::size_t>(offset));
+                    const int elem_len = read_int(backup_data.data(), static_cast<std::size_t>(offset));
                     offset += 4;
                     this->[:field:].touch().clear();
                     this->[:field:].touch().append(backup_data.data() + offset,
@@ -324,7 +332,7 @@ namespace {
                 throw std::runtime_error("rollback: malformed frame (footer)");
 
             const int nbytes =
-                *reinterpret_cast<const int*>(backup_data.data() + static_cast<std::size_t>(r - sizeof(int)));
+                read_int(backup_data.data(), static_cast<std::size_t>(r - static_cast<int>(sizeof(int))));
             r -= static_cast<int>(sizeof(int));
 
             if (nbytes < static_cast<int>(sizeof(int)) || nbytes > r)
@@ -333,8 +341,7 @@ namespace {
             const int session_start = r - nbytes;
             const char* segment = backup_data.data() + static_cast<std::size_t>(session_start);
 
-            const int object_id =
-                *reinterpret_cast<const int*>(segment);
+            const int object_id = read_int(segment, 0);
             const int payload_len =
                 nbytes - static_cast<int>(sizeof(int));
             if (payload_len < 0)

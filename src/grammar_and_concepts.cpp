@@ -1,33 +1,30 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <meta>
 #include <print>
 #include <string>
 #include <typeinfo>
+
+namespace {
 
 struct PodStruct {
     int m_mem_int;
     double m_mem_real;
     std::string m_mem_str;
 
-    PodStruct operator+(const PodStruct& _other) const
+    PodStruct operator+([[maybe_unused]] const PodStruct& _other) const
     {
         return {};
     }
 };
+
+} // namespace
 
 namespace MyNameSpace {
     namespace Woops {
         
     }
 }
-
-template <typename T>
-consteval auto memeber_static_array(const T& _object)
-{
-    return std::define_static_array(
-        std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
-}
-
 
 namespace {
 
@@ -61,7 +58,7 @@ void test_entry::grammar_and_concepts()
         print_meta_info<^^MyNameSpace::Woops>(); // reflect a namespace
 
         // Impressive !
-        double pi = 3.14;
+        [[maybe_unused]] double pi = 3.14;
         print_meta_info<^^pi>(); // reflect a variable
 
         // can't reflect a run time expression
@@ -101,7 +98,7 @@ void test_entry::grammar_and_concepts()
     {
         // template for
         // type is not fixed like generic programing
-        template for (constexpr std::meta::info mem : memeber_static_array(PodStruct{})) {
+        template for (constexpr std::meta::info mem : member_static_array(PodStruct{})) {
             using MemberType = typename[:std::meta::type_of(mem):];
 
             std::println("Template for loop for memberType = {}", typeid(MemberType).name());

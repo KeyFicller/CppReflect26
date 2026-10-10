@@ -1,4 +1,4 @@
-"""LLM clients over the C++ reflection demo. Two modes, one entry point.
+"""LLM clients over the C++ reflection code. Two modes, one entry point.
 
 The C++ binary owns the contract in both directions; Python never redeclares a
 signature:
@@ -45,6 +45,11 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 BINARY = os.path.join(ROOT, "build", "CppReflection")
 MODEL = "deepseek-flash"
 
+# One C++ request must not hang forever. Override with CPP_REFLECT_TIMEOUT
+# (seconds); 0 means wait indefinitely, which is what joint debugging needs when
+# the debugger is holding the process at a breakpoint.
+DEFAULT_TIMEOUT = 30.0
+
 DEFAULT_QUESTION = (
     "Find documents about C++26 static reflection using Fahrenheit, "
     "top 3 results, and require an exact match."
@@ -69,6 +74,15 @@ def load_env(path: str) -> None:
             os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
 
 
+def request_timeout() -> float | None:
+    """Per-request timeout in seconds, or None for no limit (CPP_REFLECT_TIMEOUT)."""
+    raw = os.environ.get("CPP_REFLECT_TIMEOUT")
+    if raw is None:
+        return DEFAULT_TIMEOUT
+    seconds = float(raw)
+    return seconds if seconds > 0 else None
+
+
 def run_cpp(*args: str, stdin: dict | None = None) -> str:
     """Run one request and return its stdout text, raising on a non-zero exit.
 
@@ -79,28 +93,54 @@ def run_cpp(*args: str, stdin: dict | None = None) -> str:
     the debugger.
     """
     address = os.environ.get("CPP_REFLECT_SOCKET")
+    timeout = request_timeout()
     if address:
-        return _run_over_socket(address, args, stdin)
+        return _run_over_socket(address, args, stdin, timeout=timeout)
 
-    result = subprocess.run(
-        [BINARY, *args],
-        input=json.dumps(stdin) if stdin is not None else None,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [BINARY, *args],
+            input=json.dumps(stdin) if stdin is not None else None,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except FileNotFoundError as exc:
+        raise RuntimeError(
+            "C++ binary not found at {}; build it with `cmake --build build`".format(BINARY)
+        ) from exc
+    except subprocess.TimeoutExpired as exc:
+        raise RuntimeError(
+            "{} timed out after {}s".format(" ".join(args), timeout)
+        ) from exc
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or "{} failed".format(" ".join(args)))
     return result.stdout
 
 
-def _run_over_socket(address: str, args: tuple[str, ...], stdin: dict | None) -> str:
+def _run_over_socket(
+    address: str, args: tuple[str, ...], stdin: dict | None, *, timeout: float | None
+) -> str:
     """One request/response line against a `--serve` process."""
     request = json.dumps({"args": list(args), "stdin": stdin}) + "\n"
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-        sock.connect(address)
-        sock.sendall(request.encode())
-        with sock.makefile("r", encoding="utf-8") as stream:
-            reply = json.loads(stream.readline())
+        if timeout is not None:
+            sock.settimeout(timeout)
+        try:
+            sock.connect(address)
+            sock.sendall(request.encode())
+            with sock.makefile("r", encoding="utf-8") as stream:
+                line = stream.readline()
+        except socket.timeout as exc:
+            raise RuntimeError(
+                "request to --serve at {} timed out after {}s "
+                "(set CPP_REFLECT_TIMEOUT=0 if a breakpoint is holding it)".format(address, timeout)
+            ) from exc
+        except OSError as exc:
+            raise RuntimeError("cannot reach --serve at {}: {}".format(address, exc)) from exc
+    if not line:
+        raise RuntimeError("--serve at {} closed the connection without replying".format(address))
+    reply = json.loads(line)
     if "error" in reply:
         raise RuntimeError(reply["error"])
     return reply["stdout"]
@@ -194,7 +234,7 @@ def run_structured(request: str, format: str) -> int:
     print("model returned:")
     print(json.dumps(extracted, indent=2), "\n")
 
-    print("parsed back into demo::{} by C++:".format(format))
+    print("parsed back into app::{} by C++:".format(format))
     print(parse_model(format, extracted))
     return 0
 

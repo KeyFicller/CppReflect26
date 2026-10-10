@@ -1,57 +1,45 @@
 #pragma once
 
-#include <cstddef>
 #include <istream>
-#include <print>
 #include <string>
 #include <string_view>
 #include <vector>
 
+// The reflection suite's table of contents: one entry per reflection example,
+// listed in the order main() runs them. Each is implemented in its own
+// translation unit. The CLI bridge (--emit-tools / --call / --emit-schemas /
+// --parse) goes through run_request(); --serve() shares the same dispatch.
+// Shared helpers (the section banner, member_static_array) live in "helpers.h".
 namespace test_entry {
 
-// RAII section banner: prints the header on construction and a rule line of
-// matching width (plus a blank line) on destruction:
-//   =============== Hello Reflection ================
-//   ...
-//   ==================================================
-class section {
-public:
-    explicit section(std::string_view _name)
-        : m_rule_width(kPad * 2 + _name.size() + 2)
-    {
-        std::println("{} {} {}", std::string(kPad, '='), _name, std::string(kPad, '='));
-    }
-
-    ~section()
-    {
-        std::println("{}", std::string(m_rule_width, '='));
-        std::println();
-    }
-
-    section(const section&) = delete;
-    section& operator=(const section&) = delete;
-
-private:
-    static constexpr std::size_t kPad = 15;
-    std::size_t m_rule_width;
-};
-
+/// A POD's fields, printed by splicing each reflected member.
 void hello_reflection();
 
+/// The ^^ and [: :] operators, reflection comparison, and `template for`.
 void grammar_and_concepts();
 
+/// A tour of std::meta queries: names, types, members, classification, bases.
 void list_of_meta_functions();
 
+/// enum <-> string, enumerator value/name tables, and bitmask rendering.
 void implement_enumeration_reflection();
 
+/// Member count/name/has-member queries; YAML dump+load and raw byte
+/// (de)serialization, all driven by the member list.
 void implement_struct_reflection();
 
+/// Auto-generated Dear ImGui widgets from reflected members and base classes.
 void implement_ui_reflection();
 
+/// Reflection-driven undo/redo: locate a member by index, snapshot it, roll a
+/// command frame back.
 void implement_undo_redo_reflection();
 
+/// A forward-chain network composed at compile time from reflected members.
 void implement_ffn_reflection();
 
+/// The LLM bridge: JSON Schema from annotations, from_json/to_json, the tool
+/// and model registries.
 void implement_json_schema();
 
 /// Runs one CLI-shaped request without touching std::cin/std::cout: `_args` is

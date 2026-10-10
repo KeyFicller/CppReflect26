@@ -8,6 +8,8 @@
 #include <GLFW/glfw3.h>
 
 #if defined(__APPLE__)
+// OpenGL is deprecated on macOS 10.14+; silence the deprecation warnings.
+#define GL_SILENCE_DEPRECATION
 #include <OpenGL/gl3.h>
 #else
 #include <GL/gl.h>

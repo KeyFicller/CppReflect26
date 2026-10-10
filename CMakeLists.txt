@@ -45,6 +45,10 @@ add_compile_options(-isysroot "${_sdk}" "$<$<COMPILE_LANGUAGE:CXX>:-freflection-
 # Link the reflective runtime from the prefix instead of /usr/lib.
 add_link_options(-isysroot "${_sdk}" -L "${LLVM_ROOT}/lib" "-Wl,-rpath,${LLVM_ROOT}/lib")
 
+# Diagnostics for this project's own target only; third-party code is left alone.
+option(CPPREF_WARNINGS "Enable -Wall -Wextra on CppReflection" ON)
+option(CPPREF_SANITIZE "Build CppReflection with ASan + UBSan" OFF)
+
 # ---------------------------------------------------------------------------
 # Third-party dependencies.
 # ---------------------------------------------------------------------------
@@ -81,11 +85,14 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(yaml-cpp)
 
 # Dear ImGui (docking branch): sources only, the repo has no CMakeLists.
+# Pinned to a commit, not the moving `docking` branch, so the build is
+# reproducible; a pin also means no GIT_SHALLOW, which cannot fetch an
+# arbitrary commit from every mirror.
+set(CPPREF_IMGUI_TAG "7e1b65d26d52e9dd199d889c148c72184de647b4" CACHE STRING "Dear ImGui commit")
 FetchContent_Declare(
   imgui
   GIT_REPOSITORY "${CPPREF_IMGUI_URL}"
-  GIT_TAG docking
-  GIT_SHALLOW TRUE
+  GIT_TAG "${CPPREF_IMGUI_TAG}"
 )
 FetchContent_MakeAvailable(imgui)
 set(CPPREF_IMGUI_ROOT "${imgui_SOURCE_DIR}")
@@ -131,7 +138,7 @@ add_executable(
   CppReflection
   main.cpp
   src/hello_reflection.cpp
-  src/grammer_and_concepts.cpp
+  src/grammar_and_concepts.cpp
   src/list_of_meta_functions.cpp
   src/implement_enumeration_reflection.cpp
   src/implement_struct_reflection.cpp
@@ -147,6 +154,14 @@ target_include_directories(CppReflection PRIVATE
     "${CPPREF_IMGUI_ROOT}/backends"
     "${CPPREF_IMGUI_ROOT}/misc/cpp")
 target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL nlohmann_json::nlohmann_json)
+
+if(CPPREF_WARNINGS)
+  target_compile_options(CppReflection PRIVATE -Wall -Wextra)
+endif()
+if(CPPREF_SANITIZE)
+  target_compile_options(CppReflection PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
+  target_link_options(CppReflection PRIVATE -fsanitize=address,undefined)
+endif()
 
 # ld64 leaves DWARF in the object files; lldb needs a .dSYM beside the binary
 # to bind breakpoints. (macOS)

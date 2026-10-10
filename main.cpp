@@ -14,7 +14,7 @@ int main(int argc, char* argv[]) {
         return test_entry::serve(argc > 2 ? argv[2] : "/tmp/cpp_reflect.sock");
     }
 
-    // Non-demo modes used by the Python LLM loop.
+    // CLI modes used by the Python LLM loop.
     if (argc > 1 && std::strncmp(argv[1], "--", 2) == 0) {
         const std::vector<std::string> args(argv + 1, argv + argc);
         try {

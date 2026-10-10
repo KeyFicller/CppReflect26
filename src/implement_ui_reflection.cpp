@@ -1,4 +1,5 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <meta>
 #include <print>
 #include <format>
@@ -8,6 +9,8 @@
 #include <imgui.h>
 #include <imgui_stdlib.h>
 
+
+namespace {
 
 struct MyBaseStruct {
     std::string m_mem_tag;
@@ -21,6 +24,8 @@ struct MyStruct : public MyBaseStruct {
 struct MyDeriveStruct : public MyStruct {
     MyStruct m_mem_other;
 };
+
+} // namespace
 
 template <typename T>
 struct MyUIControl {};
@@ -110,9 +115,7 @@ void impl_reflection_class_members(T& _object)
 template <typename T>
 void impl_reflection_ui(T& _object)
 {
-    using U = std::remove_cvref_t<T>;
-
-    if constexpr (std::meta::is_same_type(^^U, ^^std::string)) {
+    if constexpr (std::meta::is_same_type(^^std::remove_cvref_t<T>, ^^std::string)) {
         ImGui::PushID(static_cast<const void*>(std::addressof(_object)));
         ImGui::InputText("##string_value", &_object);
         ImGui::PopID();
@@ -125,7 +128,8 @@ void impl_reflection_ui(T& _object)
 
         const std::string identifier(std::meta::identifier_of(^^T));
 
-        // 与 Dear ImGui Demo 左侧类似的 CollapsingHeader（Framed、全宽容器、箭头 + 文案）
+        // A CollapsingHeader like the one on the left of the ImGui demo:
+        // framed, full width, arrow plus label.
         if (ImGui::CollapsingHeader((identifier + ':').c_str(),
                                     ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_SpanAvailWidth)) {
             ImGui::Indent();

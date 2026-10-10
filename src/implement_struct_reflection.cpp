@@ -1,14 +1,19 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <meta>
 #include <print>
 #include <string>
 #include <yaml-cpp/yaml.h>
+
+namespace {
 
 struct MyStruct {
     int m_pub_i;
     double m_pub_d;
     std::string m_pub_s;
 };
+
+} // namespace
 
 template <typename T>
 consteval auto impl_reflection_member_count()
@@ -27,8 +32,8 @@ consteval auto impl_reflection_member()
 template <typename T>
 consteval auto impl_reflection_has_member(const char* _str)
 {
-    constexpr auto fileds = std::define_static_array(std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
-    template for (constexpr std::meta::info field : fileds) {
+    constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^T, std::meta::access_context::unchecked()));
+    template for (constexpr std::meta::info field : fields) {
         if (std::meta::identifier_of(field) == _str) {
             return true;
         }
@@ -78,6 +83,8 @@ void impl_reflection_serialize(const T& _object, std::string* _cache)
             schar.append((const char*)&len, sizeof(len));
             schar.append(_object.[:field:].c_str(), _object.[:field:].size());
         } else {
+            static_assert(std::is_trivially_copyable_v<field_type>,
+                          "impl_reflection_serialize: raw-byte copy needs a trivially copyable member");
             schar.append((const char*)&_object.[:field:], sizeof(field_type));
         }
     }
@@ -104,6 +111,8 @@ void impl_reflection_deserialize(T& _object, const std::string& _cache)
             _object.[:field:] = std::string(schar.data() + offset, len);
             offset += len;
         } else {
+            static_assert(std::is_trivially_copyable_v<field_type>,
+                          "impl_reflection_deserialize: raw-byte copy needs a trivially copyable member");
             std::memcpy(&_object.[:field:], schar.data() + offset, sizeof(field_type));
             offset += sizeof(field_type);
         }

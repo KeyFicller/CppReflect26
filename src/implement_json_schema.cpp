@@ -1,7 +1,9 @@
 #include "test_entry.h"
+#include "helpers.h"
 
 #include <array>
 #include <cerrno>
+#include <charconv>
 #include <csignal>
 #include <cstddef>
 #include <cstdlib>
@@ -72,7 +74,8 @@ struct desc {
 };
 
 // A structural, variadic list of descriptions. std::tuple is not a structural
-// type in this implementation, so we roll our own aggregate.
+// type in this implementation, so we roll our own. A constructor keeps the
+// nested aggregate from tripping -Wmissing-braces/-Wmissing-field-initializers.
 template <typename... Ts>
 struct doc_list;
 template <>
@@ -81,6 +84,9 @@ template <typename T, typename... Ts>
 struct doc_list<T, Ts...> {
     T head;
     doc_list<Ts...> tail;
+
+    constexpr doc_list() = default;
+    constexpr doc_list(T _head, Ts... _tail) : head(_head), tail(_tail...) {}
 };
 
 /// Function-parameter descriptions, matched to parameters by position:
@@ -104,10 +110,13 @@ struct is_sequence : std::false_type {};
 template <typename T, typename A>
 struct is_sequence<std::vector<T, A>> : std::true_type {
     using value_type = T;
+    static constexpr bool fixed_size = false;
 };
 template <typename T, std::size_t N>
 struct is_sequence<std::array<T, N>> : std::true_type {
     using value_type = T;
+    static constexpr bool fixed_size = true;
+    static constexpr std::size_t extent = N;
 };
 
 template <typename T>
@@ -115,20 +124,61 @@ inline constexpr bool is_string_like_v =
     std::is_same_v<std::remove_cv_t<T>, std::string> ||
     std::is_same_v<std::remove_cv_t<T>, std::string_view>;
 
+/// The scalar types json_type_name() can name: everything param_schema() does not
+/// route to optional/sequence/enum/nested-object. Anything else is unsupported.
+template <typename T>
+inline constexpr bool is_json_scalar_v =
+    std::is_same_v<std::remove_cv_t<T>, bool> || std::is_integral_v<T> ||
+    std::is_floating_point_v<T> || is_string_like_v<T>;
+
 // --- JSON helpers -----------------------------------------------------------
 
 constexpr std::string json_escape(std::string_view _s)
 {
+    constexpr char kHex[] = "0123456789abcdef";
     std::string out;
     for (char c : _s) {
+        const auto u = static_cast<unsigned char>(c);
         switch (c) {
         case '"': out += "\\\""; break;
         case '\\': out += "\\\\"; break;
         case '\n': out += "\\n"; break;
         case '\r': out += "\\r"; break;
         case '\t': out += "\\t"; break;
-        default: out += c; break;
+        case '\b': out += "\\b"; break;
+        case '\f': out += "\\f"; break;
+        default:
+            // Every other control character must be escaped as \u00XX, or the
+            // output is not valid JSON.
+            if (u < 0x20) {
+                out += "\\u00";
+                out += kHex[(u >> 4) & 0xF];
+                out += kHex[u & 0xF];
+            } else {
+                out += c;
+            }
+            break;
         }
+    }
+    return out;
+}
+
+/// Decimal text for a non-negative integer, usable at consteval (std::to_string
+/// is not constexpr here).
+consteval std::string decimal(std::size_t _v)
+{
+    if (_v == 0) {
+        return "0";
+    }
+    char buf[24];
+    std::size_t len = 0;
+    while (_v > 0) {
+        buf[len++] = static_cast<char>('0' + _v % 10);
+        _v /= 10;
+    }
+    std::string out;
+    while (len > 0) {
+        out += buf[--len];
     }
     return out;
 }
@@ -150,6 +200,8 @@ consteval const char* json_type_name(meta::info _t)
     if (meta::is_same_type(_t, ^^std::string) || meta::is_same_type(_t, ^^std::string_view)) {
         return "string";
     }
+    // Unreachable: param_schema() only calls this for types satisfying
+    // is_json_scalar_v, and the remaining scalars are the strings above.
     return "string";
 }
 
@@ -282,7 +334,15 @@ consteval std::string param_schema()
     if constexpr (is_optional<T>::value) {
         return "{\"anyOf\":[" + param_schema<typename T::value_type>() + ",{\"type\":\"null\"}]}";
     } else if constexpr (is_sequence<T>::value) {
-        return "{\"type\":\"array\",\"items\":" + param_schema<typename T::value_type>() + "}";
+        std::string out =
+            "{\"type\":\"array\",\"items\":" + param_schema<typename T::value_type>();
+        if constexpr (is_sequence<T>::fixed_size) {
+            // std::array has a fixed length: pin it so the model knows the size.
+            const std::string n = decimal(is_sequence<T>::extent);
+            out += ",\"minItems\":" + n + ",\"maxItems\":" + n;
+        }
+        out += "}";
+        return out;
     } else if constexpr (std::is_enum_v<T>) {
         std::string values;
         for (meta::info e : meta::enumerators_of(^^T)) {
@@ -295,6 +355,10 @@ consteval std::string param_schema()
     } else if constexpr (std::is_class_v<T> && !is_string_like_v<T>) {
         return object_schema_impl<T>(std::make_index_sequence<member_count<T>()>());
     } else {
+        static_assert(is_json_scalar_v<T>,
+                      "param_schema: unsupported type for JSON Schema generation "
+                      "(only bool, integers, floats, strings, options, sequences, enums "
+                      "and reflected classes are supported)");
         return std::string("{\"type\":\"") + json_type_name(^^T) + "\"}";
     }
 }
@@ -499,11 +563,14 @@ void assign_member(auto& _out, const nlohmann::json& _j)
     const std::string key(name);
     if (_j.contains(key)) {
         _out.[: M :] = from_json<MT>(_j.at(key));
+    } else if constexpr (!is_optional<MT>::value && !meta::has_default_member_initializer(M)) {
+        throw std::runtime_error("missing required member: " + key);
     }
 }
 
 /// Members absent from the document keep the value from default construction,
-/// so declared defaults and std::nullopt survive a partial document.
+/// so declared defaults and std::nullopt survive a partial document. A member
+/// with neither a default nor std::optional is required and throws when absent.
 template <typename T, std::size_t... Is>
 T object_from_json(const nlohmann::json& _j, std::index_sequence<Is...>)
 {
@@ -531,9 +598,17 @@ T from_json(const nlohmann::json& _j)
             }
             return out;
         } else {
+            static_assert(is_sequence<T>::fixed_size,
+                          "from_json: expected a fixed-size std::array");
             T out{};
-            const std::size_t n = _j.size() < out.size() ? _j.size() : out.size();
-            for (std::size_t i = 0; i < n; ++i) {
+            // std::array length is part of its type, so a partial document is an
+            // error rather than a silently padded result.
+            if (_j.size() != out.size()) {
+                throw std::runtime_error("array length mismatch: expected " +
+                                         std::to_string(out.size()) + ", got " +
+                                         std::to_string(_j.size()));
+            }
+            for (std::size_t i = 0; i < out.size(); ++i) {
                 out[i] = from_json<V>(_j.at(i));
             }
             return out;
@@ -560,7 +635,8 @@ T from_json(const nlohmann::json& _j)
 
 /// Builds the argument tuple from the JSON object and actually calls the
 /// function. This is the LLM tool-call path: the model's `arguments` string in,
-/// a real C++ call out. Missing keys fall back to default-constructed arguments.
+/// a real C++ call out. A key with a default argument (or std::optional) may be
+/// omitted; a required one must be present.
 template <meta::info Fn, std::size_t I>
 void assign_argument(auto& _args, const nlohmann::json& _j)
 {
@@ -570,6 +646,8 @@ void assign_argument(auto& _args, const nlohmann::json& _j)
     const std::string key(name);
     if (_j.contains(key)) {
         std::get<I>(_args) = from_json<PT>(_j.at(key));
+    } else if constexpr (!is_optional<PT>::value && !meta::has_default_argument(param_at<Fn, I>())) {
+        throw std::runtime_error("missing required argument: " + key);
     }
 }
 
@@ -593,6 +671,17 @@ auto invoke_with_json(const nlohmann::json& _j)
 
 template <typename T>
 std::string to_json(const T& _value);
+
+/// Shortest round-trip text for a number. std::to_string guarantees only six
+/// decimals for floating point, which both loses precision and dresses up
+/// values as "0.750000"; std::to_chars emits the shortest exact form.
+template <typename T>
+std::string number_to_json(T _value)
+{
+    char buf[64];
+    const auto result = std::to_chars(buf, buf + sizeof buf, _value);
+    return std::string(buf, result.ptr);
+}
 
 /// Appends `,"name":value`, or nothing at all for an empty std::optional:
 /// absence is how parsing reads "no value", so it is how we write one too.
@@ -635,7 +724,7 @@ std::string to_json(const T& _value)
     } else if constexpr (std::is_enum_v<T>) {
         return "\"" + enum_to_string(_value) + "\"";
     } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-        return std::to_string(_value);
+        return number_to_json(_value);
     } else if constexpr (std::is_same_v<T, std::string>) {
         return "\"" + json_escape(_value) + "\"";
     } else if constexpr (is_optional<T>::value) {
@@ -748,7 +837,7 @@ inline void register_model(model_entry _entry)
     }();                                                                                           \
     }
 
-namespace demo {
+namespace app {
 
 enum class Unit {
     Celsius,
@@ -801,7 +890,7 @@ std::string search_documents(std::string query, int limit, bool exact_match,
 }
 CPP_REFLECT_TOOL(search_documents)
 
-} // namespace demo
+} // namespace app
 
 // --- validation with a real JSON parser -------------------------------------
 
@@ -947,11 +1036,11 @@ void test_entry::implement_json_schema()
 {
     test_entry::section banner{"Implement JSON Schema"};
 
-    constexpr std::string_view fn_schema = js::function_schema<^^demo::search_documents>();
+    constexpr std::string_view fn_schema = js::function_schema<^^app::search_documents>();
     constexpr std::string_view tool_schema =
-        js::function_schema<^^demo::search_documents, js::Style::OpenAiTool>();
-    constexpr std::string_view query_schema = js::tool_schema<demo::Query>();
-    constexpr std::string_view request_schema = js::tool_schema<demo::SearchRequest>();
+        js::function_schema<^^app::search_documents, js::Style::OpenAiTool>();
+    constexpr std::string_view query_schema = js::tool_schema<app::Query>();
+    constexpr std::string_view request_schema = js::tool_schema<app::SearchRequest>();
 
     std::println("--- Function -> JSON Schema ---");
     std::println("{}", fn_schema);
@@ -1017,10 +1106,10 @@ void test_entry::implement_json_schema()
         "top_k": [3, 5, 8]
     })";
     if (const auto doc = parse_json(request_json)) {
-        const demo::SearchRequest req = js::from_json<demo::SearchRequest>(*doc);
+        const app::SearchRequest req = js::from_json<app::SearchRequest>(*doc);
         std::println("  query.text        = {}", req.query.text);
         std::println("  query.unit        = {}",
-                     req.query.unit == demo::Unit::Celsius ? "Celsius" : "Fahrenheit");
+                     req.query.unit == app::Unit::Celsius ? "Celsius" : "Fahrenheit");
         std::println("  query.ranges      = {} entries", req.query.ranges.size());
         std::println("  ranges[0].min     = {}", req.query.ranges[0].min);
         std::println("  ranges[0].max     = {}",
@@ -1037,15 +1126,15 @@ void test_entry::implement_json_schema()
     std::println("--- JSON args -> actual function call ---");
     if (const auto doc = parse_json(R"({"query":"reflection in C++26","limit":5,
                                          "exact_match":true,"unit":"Fahrenheit"})")) {
-        std::println("  full args    -> {}", js::invoke_with_json<^^demo::search_documents>(*doc));
+        std::println("  full args    -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
     }
     if (const auto doc = parse_json(R"({"query":"hello","limit":1,"exact_match":false})")) {
-        std::println("  unit omitted -> {}", js::invoke_with_json<^^demo::search_documents>(*doc));
+        std::println("  unit omitted -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
     }
     if (const auto doc = parse_json(
             R"({"query":"x","limit":1,"exact_match":true,"unit":"Kelvin"})")) {
         try {
-            (void)js::invoke_with_json<^^demo::search_documents>(*doc);
+            (void)js::invoke_with_json<^^app::search_documents>(*doc);
             std::println("  invalid enum -> NOT rejected (bug)");
             valid = false;
         } catch (const std::exception& e) {

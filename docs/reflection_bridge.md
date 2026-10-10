@@ -40,8 +40,8 @@ echo '{"query":{"text":"x","unit":"Celsius","ranges":[],"fuzzy":false},
 Errors go to **stderr** with exit code 1 (`invalid JSON arguments on stdin`,
 `unknown tool: …`, `unknown model: …`, `unknown command: …`).
 
-Anything starting with `--` is treated as a command; any other argv runs the demo
-suite in `main()`. `--serve` can take no argument (defaults to
+Anything starting with `--` is treated as a command; any other argv runs the
+reflection suite in `main()`. `--serve` can take no argument (defaults to
 `/tmp/cpp_reflect.sock`) and never returns.
 
 ---
@@ -288,7 +288,9 @@ Line numbers drift; treat them as hints.
   `pkill -f "CppReflection --serve"`. (`serve()` unlinks the socket before
   binding, so a stale file never blocks a fresh start.)
 - While a C++ breakpoint is hit, Python blocks reading the socket — expected;
-  `continue` releases it.
+  `continue` releases it. A request that hangs past `CPP_REFLECT_TIMEOUT` seconds
+  (default 30) fails instead of blocking forever; set `CPP_REFLECT_TIMEOUT=0` to
+  wait indefinitely while stepping in the debugger.
 - `python -m llm_client`, not `python -m llm_client.py`.
 
 ---
@@ -296,8 +298,9 @@ Line numbers drift; treat them as hints.
 ## Layout
 
 ```
-main.cpp                         argv routing + --serve; else runs the demos
-src/test_entry.h                 demo entry points + run_request/serve
+main.cpp                         argv routing + --serve; else runs the reflection suite
+src/test_entry.h                 entry points + run_request/serve
+src/helpers.h                    section banner + member_static_array
 src/implement_json_schema.cpp    schema gen, from_json/to_json, registries,
                                  run_request + --serve socket server
 llm_client.py                    tools + structured modes; the only C++ caller
@@ -322,7 +325,8 @@ Compiler (clang-p2996 fork):
   through `meta::members_of`. We require globally unique tool/model names instead
   (enforced with `std::abort()` at startup).
 
-Known limitation: `std::array<T, N>` is schematized as an unbounded array (no
-`minItems`/`maxItems`), and `from_json` fills `min(N, json.size())` elements,
-leaving the rest default — a short array is silently padded. Fixing it means
-threading `N` through `is_sequence` and validating length in both directions.
+`std::array<T, N>` is pinned in both directions: the schema carries
+`"minItems": N` and `"maxItems": N`, and `from_json` rejects any document whose
+array length is not exactly `N` (`array length mismatch: expected N, got M`).
+Omit the field entirely to keep the default; a partial array is an error, not a
+silently padded result.
