@@ -5,3 +5,4 @@ imgui.ini
 .env
 .venv/*
 __pycache__/*
+.cursor/*

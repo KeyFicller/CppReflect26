@@ -15,6 +15,13 @@ int main(int argc, char* argv[]) {
         return test_entry::serve(argc > 2 ? argv[2] : "/tmp/cpp_reflect.sock");
     }
 
+    // MCP server mode: newline-delimited JSON-RPC 2.0 on stdin/stdout. Kept
+    // ahead of the "--" CLI branch below, whose stdout must stay a single JSON
+    // document rather than a protocol stream.
+    if (argc > 1 && std::strcmp(argv[1], "--mcp") == 0) {
+        return test_entry::run_mcp();
+    }
+
     // CLI modes used by the Python LLM loop.
     if (argc > 1 && std::strncmp(argv[1], "--", 2) == 0) {
         const std::vector<std::string> args(argv + 1, argv + argc);
@@ -44,6 +51,8 @@ int main(int argc, char* argv[]) {
     test_entry::implement_ffn_reflection();
 
     test_entry::implement_json_schema();
+
+    test_entry::implement_mcp();
 
     //std::cin.get();
 

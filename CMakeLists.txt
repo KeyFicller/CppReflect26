@@ -163,6 +163,7 @@ add_executable(
   src/implement_undo_redo_reflection.cpp
   src/implement_ffn_reflection.cpp
   src/implement_json_schema.cpp
+  src/implement_mcp.cpp
   src/imgui_backend_glfw_opengl3.cpp)
 target_sources(CppReflection PRIVATE ${IMGUI_SOURCES})
 target_include_directories(CppReflection PRIVATE
