@@ -121,6 +121,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(nlohmann_json)
 
+# spdlog: colored console output for the demo suite and the --serve diagnostics.
+# No gitee mirror exists, so this one defaults to github.com; point
+# -DCPPREF_SPDLOG_URL=... at a mirror if you have one.
+set(CPPREF_SPDLOG_URL "https://github.com/gabime/spdlog.git" CACHE STRING "")
+set(CPPREF_SPDLOG_TAG "v1.15.3" CACHE STRING "")
+set(SPDLOG_BUILD_EXAMPLE OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_BENCH OFF CACHE BOOL "" FORCE)
+set(SPDLOG_BUILD_SHARED OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY "${CPPREF_SPDLOG_URL}"
+  GIT_TAG "${CPPREF_SPDLOG_TAG}"
+  GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(spdlog)
+
 # ---------------------------------------------------------------------------
 # CppReflection executable.
 # ---------------------------------------------------------------------------
@@ -153,7 +170,7 @@ target_include_directories(CppReflection PRIVATE
     "${CPPREF_IMGUI_ROOT}"
     "${CPPREF_IMGUI_ROOT}/backends"
     "${CPPREF_IMGUI_ROOT}/misc/cpp")
-target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL nlohmann_json::nlohmann_json)
+target_link_libraries(CppReflection PRIVATE yaml-cpp::yaml-cpp glfw OpenGL::GL nlohmann_json::nlohmann_json spdlog::spdlog)
 
 if(CPPREF_WARNINGS)
   target_compile_options(CppReflection PRIVATE -Wall -Wextra)

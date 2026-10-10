@@ -1,7 +1,6 @@
 #include "test_entry.h"
 #include "helpers.h"
 #include <meta>
-#include <print>
 #include <string>
 #include <concepts>
 #include <optional>
@@ -127,38 +126,26 @@ void test_entry::implement_enumeration_reflection()
 {
     test_entry::section banner{"Implement Enumeration Reflection"};
 
-    std::println("impl_classic_(WeekDay::Monday) -> {}", impl_classic_(WeekDay::Monday));
+    test_entry::log()->trace("impl_classic_(WeekDay::Monday) -> {}", impl_classic_(WeekDay::Monday));
 
     {
-        std::println("impl_reflection_(WeekDay::Monday) -> {}", impl_reflection_(WeekDay::Monday));
+        test_entry::log()->trace("impl_reflection_(WeekDay::Monday) -> {}", impl_reflection_(WeekDay::Monday));
         std::string str = "Thursday";
-        std::println("impl_reflection_<WeekDay>(\"Thursday\") -> {}", (int)(impl_reflection_<WeekDay>(str).value()));
+        test_entry::log()->trace("impl_reflection_<WeekDay>(\"Thursday\") -> {}", (int)(impl_reflection_<WeekDay>(str).value()));
     }
 
     {
-        auto list_val = impl_reflection_enum_list_val<WeekDay>();
-        std::string str;
-        for (std::size_t i = 0; i < list_val.size(); ++i) {
-            if (i != 0) {
-                str += ", ";
-            }
-            str += std::to_string(static_cast<int>(list_val[i]));
-        }
-        std::println("impl_reflection_enum_list_val<WeekDay>() -> {}", str);
+        test_entry::log()->trace("impl_reflection_enum_list_val<WeekDay>() -> {}",
+                     join(impl_reflection_enum_list_val<WeekDay>(),
+                          [](WeekDay _v) { return std::to_string(static_cast<int>(_v)); }));
 
-        const auto list_str = impl_reflection_enum_list_str<WeekDay>();
-        str.clear();
-        for (std::size_t i = 0; i < list_str.size(); ++i) {
-            if (i != 0) {
-                str += ", ";
-            }
-            str += std::string(list_str[i]);
-        }
-        std::println("impl_reflection_enum_list_str<WeekDay>() -> {}", str);
+        test_entry::log()->trace("impl_reflection_enum_list_str<WeekDay>() -> {}",
+                     join(impl_reflection_enum_list_str<WeekDay>(),
+                          [](std::string_view _s) { return std::string(_s); }));
     }
 
     {
         auto bits = static_cast<BitEnum>((int)(BitEnum::kRead) | (int)(BitEnum::kWrite));
-        std::println("impl_reflection_enum_bits_str<BitEnum>(BitEnum::kRead | BitEnum::kWrite) -> {}", impl_reflection_enum_bits_str(bits));
+        test_entry::log()->trace("impl_reflection_enum_bits_str<BitEnum>(BitEnum::kRead | BitEnum::kWrite) -> {}", impl_reflection_enum_bits_str(bits));
     }
 }

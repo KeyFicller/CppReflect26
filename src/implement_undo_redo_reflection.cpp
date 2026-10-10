@@ -1,7 +1,6 @@
 #include "test_entry.h"
 #include "helpers.h"
 #include <meta>
-#include <print>
 #include <string>
 #include <type_traits>
 #include <stdexcept>
@@ -209,7 +208,7 @@ public:
 
     void restore_from_fullback(const std::string_view& backup_data){
 
-        std::println("restore_from_fullback: {} bytes", backup_data.size());
+        test_entry::log()->trace("restore_from_fullback: {} bytes", backup_data.size());
 
         int offset = 0;
 
@@ -240,7 +239,7 @@ public:
 
     void restore_from_partialback(int _back_mem_index, const std::string_view& _backup_data) {
 
-        std::println("restoring_from_partialback: field_index {}, field_backup {}", _back_mem_index, _backup_data);
+        test_entry::log()->trace("restoring_from_partialback: field_index {}, field_backup {}", _back_mem_index, _backup_data);
 
         constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^DbObject, std::meta::access_context::unchecked()));
         template for (constexpr std::meta::info field : fields) {
@@ -371,13 +370,13 @@ void test_entry::implement_undo_redo_reflection()
     obj.touch_m_field_int() = 100;
     obj.close();
     command_end();
-    std::println("obj.m_field_int.get() -> {}", obj.get_m_field_int());
+    test_entry::log()->trace("obj.m_field_int.get() -> {}", obj.get_m_field_int());
 
     command_rollback();
-    std::println("obj.m_field_int.get() -> {}", obj.get_m_field_int());
+    test_entry::log()->trace("obj.m_field_int.get() -> {}", obj.get_m_field_int());
 
     auto data_after = obj.get_m_field_int();
-    std::println("data_before -> {}, data_after -> {}", data_before, data_after);
+    test_entry::log()->trace("data_before -> {}, data_after -> {}", data_before, data_after);
     if (data_before != data_after) {
         throw std::runtime_error("data_before != data_after");
     }

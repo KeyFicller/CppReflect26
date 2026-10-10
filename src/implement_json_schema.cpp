@@ -12,7 +12,6 @@
 #include <iterator>
 #include <meta>
 #include <optional>
-#include <print>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -782,8 +781,8 @@ inline void register_tool(tool_entry _entry)
 {
     for (const auto& existing : tool_registry()) {
         if (existing.name == _entry.name) {
-            std::println(std::cerr, "js: duplicate tool name '{}' (names must be unique)",
-                         _entry.name);
+            test_entry::log_err()->error("js: duplicate tool name '{}' (names must be unique)",
+                                         _entry.name);
             std::abort();
         }
     }
@@ -794,8 +793,8 @@ inline void register_model(model_entry _entry)
 {
     for (const auto& existing : model_registry()) {
         if (existing.name == _entry.name) {
-            std::println(std::cerr, "js: duplicate model name '{}' (names must be unique)",
-                         _entry.name);
+            test_entry::log_err()->error("js: duplicate model name '{}' (names must be unique)",
+                                         _entry.name);
             std::abort();
         }
     }
@@ -917,18 +916,18 @@ bool check_object_shapes(const json& _doc, const std::string& _path)
                                       _doc.at("type").get<std::string>() == "object";
         if (is_object_schema) {
             if (!_doc.contains("properties") || !_doc.at("properties").is_object()) {
-                std::println("  [FAIL] {}: \"properties\" is missing or not an object", _path);
+                test_entry::log()->error("  [FAIL] {}: \"properties\" is missing or not an object", _path);
                 return false;
             }
             if (!_doc.contains("required") || !_doc.at("required").is_array()) {
-                std::println("  [FAIL] {}: \"required\" is missing or not an array", _path);
+                test_entry::log()->error("  [FAIL] {}: \"required\" is missing or not an array", _path);
                 return false;
             }
             for (const auto& name : _doc.at("required")) {
                 const std::string key = name.get<std::string>();
                 if (!_doc.at("properties").contains(key)) {
-                    std::println("  [FAIL] {}: \"required\" lists \"{}\", absent from \"properties\"",
-                                 _path, key);
+                    test_entry::log()->error("  [FAIL] {}: \"required\" lists \"{}\", absent from \"properties\"",
+                                             _path, key);
                     return false;
                 }
             }
@@ -952,14 +951,14 @@ bool check_schema(const char* _label, std::string_view _text)
 {
     const auto doc = parse_json(_text);
     if (!doc) {
-        std::println("  [FAIL] {}: not well-formed JSON", _label);
+        test_entry::log()->error("  [FAIL] {}: not well-formed JSON", _label);
         return false;
     }
     if (!check_object_shapes(*doc, _label)) {
         return false;
     }
-    std::println("  [ok]   {}: well-formed, nested object schemas consistent ({} bytes)",
-                 _label, _text.size());
+    test_entry::log()->info("  [ok]   {}: well-formed, nested object schemas consistent ({} bytes)",
+                            _label, _text.size());
     return true;
 }
 
@@ -968,30 +967,30 @@ bool check_tool_schema(const char* _label, std::string_view _text)
 {
     const auto doc = parse_json(_text);
     if (!doc) {
-        std::println("  [FAIL] {}: not well-formed JSON", _label);
+        test_entry::log()->error("  [FAIL] {}: not well-formed JSON", _label);
         return false;
     }
     if (!doc->contains("type") || doc->at("type") != "function" ||
         !doc->contains("function") || !doc->at("function").is_object()) {
-        std::println("  [FAIL] {}: missing the OpenAI tool wrapper", _label);
+        test_entry::log()->error("  [FAIL] {}: missing the OpenAI tool wrapper", _label);
         return false;
     }
     const json& fn = doc->at("function");
     for (const char* key : {"name", "description", "parameters"}) {
         if (!fn.contains(key)) {
-            std::println("  [FAIL] {}: \"function.{}\" is missing", _label, key);
+            test_entry::log()->error("  [FAIL] {}: \"function.{}\" is missing", _label, key);
             return false;
         }
     }
     if (!fn.at("name").is_string() || !fn.at("description").is_string()) {
-        std::println("  [FAIL] {}: \"function.name\"/\"description\" are not strings", _label);
+        test_entry::log()->error("  [FAIL] {}: \"function.name\"/\"description\" are not strings", _label);
         return false;
     }
     if (!check_object_shapes(fn.at("parameters"), std::string(_label) + "/parameters")) {
         return false;
     }
-    std::println("  [ok]   {}: valid tool, name=\"{}\", {} parameter(s)", _label,
-                 fn.at("name").get<std::string>(), fn.at("parameters").at("properties").size());
+    test_entry::log()->info("  [ok]   {}: valid tool, name=\"{}\", {} parameter(s)", _label,
+                            fn.at("name").get<std::string>(), fn.at("parameters").at("properties").size());
     return true;
 }
 
@@ -1017,16 +1016,16 @@ std::size_t count_descriptions(const json& _doc)
 bool check_description(const json& _properties, const char* _name, const char* _expected)
 {
     if (!_properties.contains(_name) || !_properties.at(_name).contains("description")) {
-        std::println("  [FAIL] property \"{}\" carries no description", _name);
+        test_entry::log()->error("  [FAIL] property \"{}\" carries no description", _name);
         return false;
     }
     const std::string got = _properties.at(_name).at("description").get<std::string>();
     if (got != _expected) {
-        std::println("  [FAIL] property \"{}\" description = \"{}\", expected \"{}\"", _name, got,
-                     _expected);
+        test_entry::log()->error("  [FAIL] property \"{}\" description = \"{}\", expected \"{}\"", _name,
+                                 got, _expected);
         return false;
     }
-    std::println("  [ok]   property \"{}\" -> \"{}\"", _name, got);
+    test_entry::log()->info("  [ok]   property \"{}\" -> \"{}\"", _name, got);
     return true;
 }
 
@@ -1042,23 +1041,23 @@ void test_entry::implement_json_schema()
     constexpr std::string_view query_schema = js::tool_schema<app::Query>();
     constexpr std::string_view request_schema = js::tool_schema<app::SearchRequest>();
 
-    std::println("--- Function -> JSON Schema ---");
-    std::println("{}", fn_schema);
+    test_entry::log()->debug("--- Function -> JSON Schema ---");
+    test_entry::log()->trace("{}", fn_schema);
 
-    std::println();
-    std::println("--- Function -> OpenAI tool ---");
-    std::println("{}", tool_schema);
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Function -> OpenAI tool ---");
+    test_entry::log()->trace("{}", tool_schema);
 
-    std::println();
-    std::println("--- Struct -> JSON Schema (Query) ---");
-    std::println("{}", query_schema);
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Struct -> JSON Schema (Query) ---");
+    test_entry::log()->trace("{}", query_schema);
 
-    std::println();
-    std::println("--- Struct -> JSON Schema (SearchRequest) ---");
-    std::println("{}", request_schema);
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Struct -> JSON Schema (SearchRequest) ---");
+    test_entry::log()->trace("{}", request_schema);
 
-    std::println();
-    std::println("--- Validation with nlohmann/json {}.{}.{} ---",
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Validation with nlohmann/json {}.{}.{} ---",
                  NLOHMANN_JSON_VERSION_MAJOR, NLOHMANN_JSON_VERSION_MINOR,
                  NLOHMANN_JSON_VERSION_PATCH);
 
@@ -1067,8 +1066,8 @@ void test_entry::implement_json_schema()
     valid &= check_tool_schema("openai tool", tool_schema);
     valid &= check_schema("struct Query", query_schema);
     valid &= check_schema("struct SearchRequest", request_schema);
-    std::println();
-    std::println("--- Parameter / field descriptions ---");
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Parameter / field descriptions ---");
     if (const auto tool = parse_json(tool_schema)) {
         const auto& props = tool->at("function").at("parameters").at("properties");
         valid &= check_description(props, "query", "The raw query text.");
@@ -1089,12 +1088,16 @@ void test_entry::implement_json_schema()
         const auto doc = parse_json(_text);
         return doc ? count_descriptions(*doc) : 0;
     };
-    std::println("  description keys: fn={}, tool={}, query={}, request={}", count_of(fn_schema),
+    test_entry::log()->trace("  description keys: fn={}, tool={}, query={}, request={}", count_of(fn_schema),
                  count_of(tool_schema), count_of(query_schema), count_of(request_schema));
-    std::println("  => {}", valid ? "all schemas valid" : "VALIDATION FAILED");
+    if (valid) {
+        test_entry::log()->info("  => all schemas valid");
+    } else {
+        test_entry::log()->error("  => VALIDATION FAILED");
+    }
 
-    std::println();
-    std::println("--- JSON value -> C++ struct ---");
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- JSON value -> C++ struct ---");
     const char* request_json = R"({
         "query": {
             "text": "static reflection",
@@ -1107,45 +1110,45 @@ void test_entry::implement_json_schema()
     })";
     if (const auto doc = parse_json(request_json)) {
         const app::SearchRequest req = js::from_json<app::SearchRequest>(*doc);
-        std::println("  query.text        = {}", req.query.text);
-        std::println("  query.unit        = {}",
+        test_entry::log()->trace("  query.text        = {}", req.query.text);
+        test_entry::log()->trace("  query.unit        = {}",
                      req.query.unit == app::Unit::Celsius ? "Celsius" : "Fahrenheit");
-        std::println("  query.ranges      = {} entries", req.query.ranges.size());
-        std::println("  ranges[0].min     = {}", req.query.ranges[0].min);
-        std::println("  ranges[0].max     = {}",
+        test_entry::log()->trace("  query.ranges      = {} entries", req.query.ranges.size());
+        test_entry::log()->trace("  ranges[0].min     = {}", req.query.ranges[0].min);
+        test_entry::log()->trace("  ranges[0].max     = {}",
                      req.query.ranges[0].max ? std::to_string(*req.query.ranges[0].max) : "null");
-        std::println("  ranges[1].max     = {} (absent in JSON)",
+        test_entry::log()->trace("  ranges[1].max     = {} (absent in JSON)",
                      req.query.ranges[1].max ? std::to_string(*req.query.ranges[1].max) : "null");
-        std::println("  query.weight      = {}",
+        test_entry::log()->trace("  query.weight      = {}",
                      req.query.weight ? std::to_string(*req.query.weight) : "null");
-        std::println("  top_k             = [{}, {}, {}]", req.top_k[0], req.top_k[1], req.top_k[2]);
-        std::println("  debug             = {} (absent -> default)", req.debug);
+        test_entry::log()->trace("  top_k             = [{}, {}, {}]", req.top_k[0], req.top_k[1], req.top_k[2]);
+        test_entry::log()->trace("  debug             = {} (absent -> default)", req.debug);
     }
 
-    std::println();
-    std::println("--- JSON args -> actual function call ---");
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- JSON args -> actual function call ---");
     if (const auto doc = parse_json(R"({"query":"reflection in C++26","limit":5,
                                          "exact_match":true,"unit":"Fahrenheit"})")) {
-        std::println("  full args    -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
+        test_entry::log()->trace("  full args    -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
     }
     if (const auto doc = parse_json(R"({"query":"hello","limit":1,"exact_match":false})")) {
-        std::println("  unit omitted -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
+        test_entry::log()->trace("  unit omitted -> {}", js::invoke_with_json<^^app::search_documents>(*doc));
     }
     if (const auto doc = parse_json(
             R"({"query":"x","limit":1,"exact_match":true,"unit":"Kelvin"})")) {
         try {
             (void)js::invoke_with_json<^^app::search_documents>(*doc);
-            std::println("  invalid enum -> NOT rejected (bug)");
+            test_entry::log()->error("  invalid enum -> NOT rejected (bug)");
             valid = false;
         } catch (const std::exception& e) {
-            std::println("  invalid enum -> rejected: {}", e.what());
+            test_entry::log()->info("  invalid enum -> rejected: {}", e.what());
         }
     }
 
-    std::println();
-    std::println("--- Re-serialized by nlohmann/json (function schema) ---");
+    test_entry::log()->trace("");
+    test_entry::log()->debug("--- Re-serialized by nlohmann/json (function schema) ---");
     if (const auto doc = parse_json(tool_schema)) {
-        std::println("{}", doc->dump(2));
+        test_entry::log()->trace("{}", doc->dump(2));
     }
 }
 
@@ -1329,14 +1332,14 @@ int test_entry::serve(std::string_view _socket_path)
 
     const int listener = ::socket(AF_UNIX, SOCK_STREAM, 0);
     if (listener < 0) {
-        std::println(std::cerr, "serve: socket: {}", std::strerror(errno));
+        test_entry::log_err()->error("serve: socket: {}", std::strerror(errno));
         return 1;
     }
 
     sockaddr_un address{};
     address.sun_family = AF_UNIX;
     if (_socket_path.size() >= sizeof(address.sun_path)) {
-        std::println(std::cerr, "serve: socket path too long");
+        test_entry::log_err()->error("serve: socket path too long");
         return 1;
     }
     std::memcpy(address.sun_path, _socket_path.data(), _socket_path.size());
@@ -1345,11 +1348,11 @@ int test_entry::serve(std::string_view _socket_path)
     ::unlink(path.c_str());
     if (::bind(listener, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0 ||
         ::listen(listener, 1) < 0) {
-        std::println(std::cerr, "serve: bind/listen {}: {}", path, std::strerror(errno));
+        test_entry::log_err()->error("serve: bind/listen {}: {}", path, std::strerror(errno));
         return 1;
     }
 
-    std::println(std::cerr, "serve: listening on {}", path);
+    test_entry::log_err()->info("serve: listening on {}", path);
     // Never returns: the caller is a debugger holding the process open.
     for (;;) {
         const int client = ::accept(listener, nullptr, nullptr);

@@ -1,4 +1,5 @@
 #include "test_entry.h"
+#include "helpers.h"
 #include <cstring>
 #include <exception>
 #include <iostream>
@@ -21,7 +22,7 @@ int main(int argc, char* argv[]) {
             std::println("{}", test_entry::run_request(args, std::cin));
             return 0;
         } catch (const std::exception& e) {
-            std::println(std::cerr, "{}", e.what());
+            test_entry::log_err()->error("{}", e.what());
             return 1;
         }
     }

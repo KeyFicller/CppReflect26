@@ -1,7 +1,6 @@
 #include "test_entry.h"
 #include "helpers.h"
 #include <meta>
-#include <print>
 #include <string>
 #include <yaml-cpp/yaml.h>
 
@@ -56,7 +55,7 @@ void impl_reflection_dump(const T& _object, std::string* _cache)
     if (_cache) {
         *_cache = out.c_str();
     } else {
-        std::println("{}", out.c_str());
+        test_entry::log()->trace("{}", out.c_str());
     }
 }
 
@@ -92,7 +91,7 @@ void impl_reflection_serialize(const T& _object, std::string* _cache)
     if (_cache) {
         *_cache = schar;
     } else {
-        std::println("{}", schar.c_str());
+        test_entry::log()->trace("{}", schar.c_str());
     }
 }
 
@@ -125,13 +124,13 @@ void test_entry::implement_struct_reflection()
 
     {
         // Extended useage
-        std::println("impl_reflection_member_count<MyStruct>() -> {}", impl_reflection_member_count<MyStruct>());
-        std::println("impl_reflection_member<MyStruct, 0>() -> {}", impl_reflection_member<MyStruct, 0>());
-        std::println("impl_reflection_member<MyStruct, 1>() -> {}", impl_reflection_member<MyStruct, 1>());
-        std::println("impl_reflection_member<MyStruct, 2>() -> {}", impl_reflection_member<MyStruct, 2>());
+        test_entry::log()->trace("impl_reflection_member_count<MyStruct>() -> {}", impl_reflection_member_count<MyStruct>());
+        test_entry::log()->trace("impl_reflection_member<MyStruct, 0>() -> {}", impl_reflection_member<MyStruct, 0>());
+        test_entry::log()->trace("impl_reflection_member<MyStruct, 1>() -> {}", impl_reflection_member<MyStruct, 1>());
+        test_entry::log()->trace("impl_reflection_member<MyStruct, 2>() -> {}", impl_reflection_member<MyStruct, 2>());
         // Test if consteval is working.
         // static_assert(impl_reflection_has_member<MyStruct>("xxx"), "xxx is not a member of MyStruct");
-        std::println("impl_reflection_has_member<MyStruct>(\"m_pub_i\") -> {}", impl_reflection_has_member<MyStruct>("m_pub_i"));
+        test_entry::log()->trace("impl_reflection_has_member<MyStruct>(\"m_pub_i\") -> {}", impl_reflection_has_member<MyStruct>("m_pub_i"));
     }
 
     {
@@ -143,14 +142,14 @@ void test_entry::implement_struct_reflection()
         std::string cache;
         impl_reflection_dump(dump_struct, &cache);
 
-        std::println("{}", cache);
+        test_entry::log()->trace("{}", cache);
 
         MyStruct load_struct;
         impl_reflection_load(load_struct, cache);
 
         constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^MyStruct, std::meta::access_context::unchecked()));
         template for (constexpr std::meta::info field : fields) {
-            std::println("  {}: dump: {}, load: {}", std::meta::display_string_of(field), dump_struct.[:field:], load_struct.[:field:]);
+            test_entry::log()->trace("  {}: dump: {}, load: {}", std::meta::display_string_of(field), dump_struct.[:field:], load_struct.[:field:]);
         }
     }
 
@@ -163,14 +162,14 @@ void test_entry::implement_struct_reflection()
         
         std::string cache;
         impl_reflection_serialize(serialize_struct, &cache);
-        std::println("{}", cache);
+        test_entry::log()->trace("{}", cache);
 
         MyStruct deserialize_struct;
         impl_reflection_deserialize(deserialize_struct, cache);
 
         constexpr auto fields = std::define_static_array(std::meta::nonstatic_data_members_of(^^MyStruct, std::meta::access_context::unchecked()));
         template for (constexpr std::meta::info field : fields) {
-            std::println("  {}: dump: {}, load: {}", std::meta::display_string_of(field), serialize_struct.[:field:], deserialize_struct.[:field:]);
+            test_entry::log()->trace("  {}: dump: {}, load: {}", std::meta::display_string_of(field), serialize_struct.[:field:], deserialize_struct.[:field:]);
         }
     }
 

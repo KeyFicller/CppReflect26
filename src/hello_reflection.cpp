@@ -1,7 +1,6 @@
 #include "test_entry.h"
 #include "helpers.h"
 #include <meta>
-#include <print>
 #include <string>
 
 namespace {
@@ -28,7 +27,7 @@ template <typename T>
 void print_each_field(const T& _object)
 {
     template for (constexpr std::meta::info mem : test_entry::member_static_array(_object)) {
-        std::println("  {}: {}", std::meta::identifier_of(mem), _object.[:mem:]);
+        test_entry::log()->trace("  {}: {}", std::meta::identifier_of(mem), _object.[:mem:]);
     }
 }
 
@@ -39,7 +38,7 @@ void print_each_enumerator(const E& _object)
         std::meta::enumerators_of(^^E));
     template for (constexpr std::meta::info e : enumerators) {
         constexpr E value = std::meta::extract<E>(std::meta::constant_of(e));
-        std::println("  {}: {}", std::meta::identifier_of(e), _object == value);
+        test_entry::log()->trace("  {}: {}", std::meta::identifier_of(e), _object == value);
     }
 }
 

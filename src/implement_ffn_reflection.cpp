@@ -1,7 +1,6 @@
 #include "test_entry.h"
 #include "helpers.h"
 #include <meta>
-#include <print>
 #include <string>
 
 #include <array>
@@ -127,7 +126,7 @@ void test_entry::implement_ffn_reflection()
         ReLULayer::forward(LinearLayer::forward(input)));
     const float generated = FFNetworkLayer::forward(input);
 
-    std::println("manual forward: {}", manual);
-    std::println("generated forward: {}", generated);
-    std::println("match: {}", manual == generated);
+    test_entry::log()->trace("manual forward: {}", manual);
+    test_entry::log()->trace("generated forward: {}", generated);
+    test_entry::log()->trace("match: {}", manual == generated);
 }
